@@ -26,12 +26,6 @@ log.setLevel('CRITICAL') # disable most logger messages
 
 import yaml
 
-# Read input file which sets all parameters for processing
-infile = raw_input('Enter input file name: ')
-with open(infile) as fh:
-    params = yaml.load(fh)
-
-print(params)
 
 def cubelinemoment(cube, cuberegion, spatialmaskcube, spatialmaskcuberegion,
                    vz, target, brightest_line, width_line, width,
@@ -320,7 +314,15 @@ def cubelinemoment(cube, cuberegion, spatialmaskcube, spatialmaskcuberegion,
             mom.quicklook() #filename='moment{0}/{1}_{2}_moment{0}.png'.format(moment,target,line_name))
             mom.FITSFigure.colorbar.show(axis_label_text=labels[moment].format(mom.unit.to_string('latex_inline')))
             mom.FITSFigure.save(filename='moment{0}/{1}_{2}_moment{0}.png'.format(moment,target,line_name))
-#
-# Read parameters from dictionary
-#
-cubelinemoment(**params)
+
+if __name__ == "__main__":
+    # Read input file which sets all parameters for processing
+    infile = input('Enter input file name: ')
+    with open(infile) as fh:
+        params = yaml.load(fh)
+
+    print(params)
+    #
+    # Read parameters from dictionary
+    #
+    cubelinemoment(**params)
