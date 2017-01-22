@@ -322,6 +322,7 @@ if __name__ == "__main__":
         params = yaml.load(fh)
 
     print(params)
+    params['my_line_list'] = list(map(float, params['my_line_list'].split(", ")))
     #
     # Read parameters from dictionary
     #
