@@ -113,7 +113,7 @@ def cubelinemoment(cube, cuberegion, spatialmaskcube, spatialmaskcuberegion,
     # From NGC253 H213COJ32K1 spectral baseline
     #    noisemapbright = spatialmaskcube[150:180,:,:].std(axis=0)
     # JGM: Had to go back to defining noisemapbright_baseline in function as param input of list does not seem to work
-    noisemapbright_baseline = [(150,180)]
+    #noisemapbright_baseline = [(150,180)]
     inds = np.arange(cube.shape[0])
     mask = np.zeros_like(inds, dtype='bool')
     for low,high in noisemapbright_baseline:
@@ -139,7 +139,7 @@ def cubelinemoment(cube, cuberegion, spatialmaskcube, spatialmaskcuberegion,
     #noisemap = cube[360:370,:,:].std(axis=0)
     # ADAM ADDED: Derive noisemap over non-contiguous baseline
     # JGM: Had to go back to defining noisemap_baseline in function as param input of list does not seem to work
-    noisemap_baseline = [(9, 14), (40, 42), (72, 74), (114, 122), (138, 143), (245, 254), (342, 364)]
+    #noisemap_baseline = [(9, 14), (40, 42), (72, 74), (114, 122), (138, 143), (245, 254), (342, 364)]
     inds = np.arange(cube.shape[0])
     mask = np.zeros_like(inds, dtype='bool')
     for low,high in noisemap_baseline:
@@ -326,6 +326,8 @@ if __name__ == "__main__":
     print(params)
     params['my_line_list'] = list(map(float, params['my_line_list'].split(", ")))
     params['my_line_widths'] = list(map(float, params['my_line_widths'].split(", ")))
+    params['noisemapbright_baseline'] = np.array(map(int, params['noisemapbright_baseline'].strip("()").split(",")))
+    params['noisemap_baseline'] = np.array(map(int, params['noisemap_baseline'].strip("()").split(",")))
     #
     # Read parameters from dictionary
     #
