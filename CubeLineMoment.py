@@ -236,8 +236,8 @@ def cubelinemoment(cube, cuberegion, spatialmaskcube, spatialmaskcuberegion,
 
     for line_name,line_freq,line_width in zip(my_line_names,my_line_list,my_line_widths):
 
-        line_freq = line_freq*u.GHz
-        line_width = line_width*u.km/u.s
+        line_freq = u.Quantity(line_freq,u.GHz)
+        line_width = u.Quantity(line_width,u.km/u.s)
         subcube = cube.with_spectral_unit(u.km/u.s,
                                       rest_value=line_freq,
                                       velocity_convention='optical'
@@ -317,12 +317,15 @@ def cubelinemoment(cube, cuberegion, spatialmaskcube, spatialmaskcuberegion,
 
 if __name__ == "__main__":
     # Read input file which sets all parameters for processing
-    infile = input('Enter input file name: ')
+    # infile = input('Enter input file name: ')
+    # for debug purposes, no interaction.
+    infile = "NGC4945-H2COJ32K02-CubeLineMomentInput_notAll.txt"
     with open(infile) as fh:
         params = yaml.load(fh)
 
     print(params)
     params['my_line_list'] = list(map(float, params['my_line_list'].split(", ")))
+    params['my_line_widths'] = list(map(float, params['my_line_widths'].split(", ")))
     #
     # Read parameters from dictionary
     #
