@@ -12,17 +12,14 @@ from __future__ import print_function
 
 import numpy as np
 from spectral_cube import SpectralCube
-from astropy import wcs
 from astropy import units as u
 import pyregion
 import pylab as pl
-import aplpy
-import radio_beam
+import yaml
 
 from astropy import log
 log.setLevel('CRITICAL') # disable most logger messages
 
-import yaml
 
 
 def cubelinemoment(cube, cuberegion, spatialmaskcube, spatialmaskcuberegion,
@@ -291,11 +288,10 @@ def cubelinemoment(cube, cuberegion, spatialmaskcube, spatialmaskcuberegion,
 
         line_freq = u.Quantity(line_freq,u.GHz)
         line_width = u.Quantity(line_width,u.km/u.s)
-        subcube = cube.with_spectral_unit(u.km/u.s,
-                                      rest_value=line_freq,
-                                      velocity_convention='optical'
-                                     ).spectral_slab(peak_velocity.min()-line_width,
-                                                     peak_velocity.max()+line_width)
+        vcube = cube.with_spectral_unit(u.km/u.s, rest_value=line_freq,
+                                        velocity_convention='optical')
+        subcube = vcube.spectral_slab(peak_velocity.min()-line_width,
+                                      peak_velocity.max()+line_width)
 
         # ADAM'S ADDITIONS AGAIN
         # use the spectral_axis to make a 'mask cube' with the moment1/moment2
@@ -306,8 +302,8 @@ def cubelinemoment(cube, cuberegion, spatialmaskcube, spatialmaskcuberegion,
         # [0,0,z] to be "broadcast" together
         assert centroid_map.unit.is_equivalent(u.km/u.s)
         gauss_mask_cube = np.exp(-(np.array(centroid_map)[None,:,:] -
-                               np.array(subcube.spectral_axis)[:,None,None])**2 /
-                             (2*np.array(width_map)[None,:,:]**2))
+                                   np.array(subcube.spectral_axis)[:,None,None])**2 /
+                                 (2*np.array(width_map)[None,:,:]**2))
         peak_sn = max_map / noisemap
 
         print("Peak S/N: {0}".format(np.nanmax(peak_sn)))
