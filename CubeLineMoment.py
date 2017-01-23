@@ -314,11 +314,26 @@ def cubelinemoment(cube, cuberegion, spatialmaskcube, spatialmaskcuberegion,
             mom.FITSFigure.save(filename='moment{0}/{1}_{2}_moment{0}.png'.format(moment,target,line_name))
 
 if __name__ == "__main__":
+
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Derive moment maps for a'
+                                     ' cube given a complex suite of'
+                                     ' parameters')
+    parser.add_argument('param_file', metavar='pars', type=str,
+                        help='The name of the YAML parameter file')
+
+    args = parser.parse_args()
+    
+    infile = args.param_file
+
     # Read input file which sets all parameters for processing
-    # infile = input('Enter input file name: ')
-    # for debug purposes, no interaction.
-#    infile = "NGC4945-H2COJ32K02-CubeLineMomentInput_notAll.txt"
-    infile = "NGC253-H2COJ32K02-CubeLineMomentInput.txt"
+    # Example call:
+    # ipython:
+    # %run CubeLineMoment.py yaml_scripts/NGC253-H2COJ32K02-CubeLineMomentInput.yaml
+    # cmdline:
+    # python CubeLineMoment.py yaml_scripts/NGC253-H2COJ32K02-CubeLineMomentInput.yaml
+
     with open(infile) as fh:
         params = yaml.load(fh)
 
@@ -327,7 +342,7 @@ if __name__ == "__main__":
 
     params['my_line_list'] = list(map(float, params['my_line_list'].split(", ")))
     params['my_line_widths'] = list(map(float, params['my_line_widths'].split(", ")))
-    #
+
     # Read parameters from dictionary
     #
     cubelinemoment(**params)
