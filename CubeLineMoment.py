@@ -3,8 +3,6 @@
 Derive Moment0, Moment1, and Moment2 from a reasonably-well separated spectral line in
 an image cube.  Simply calculates moments over a defined HWZI for each line in band.
 
-Band 6 version (also have a Band 7 specific version)
-
 To run in ipython use:
 
 run ~/Python/CubeLineMoment.py
@@ -319,7 +317,8 @@ if __name__ == "__main__":
     # Read input file which sets all parameters for processing
     # infile = input('Enter input file name: ')
     # for debug purposes, no interaction.
-    infile = "NGC4945-H2COJ32K02-CubeLineMomentInput_notAll.txt"
+#    infile = "NGC4945-H2COJ32K02-CubeLineMomentInput_notAll.txt"
+    infile = "NGC253-H2COJ32K02-CubeLineMomentInput.txt"
     with open(infile) as fh:
         params = yaml.load(fh)
 
@@ -328,8 +327,6 @@ if __name__ == "__main__":
 
     params['my_line_list'] = list(map(float, params['my_line_list'].split(", ")))
     params['my_line_widths'] = list(map(float, params['my_line_widths'].split(", ")))
-    params['noisemapbright_baseline'] = np.array(params['noisemapbright_baseline'])
-    params['noisemap_baseline'] = np.array(params['noisemap_baseline'])
     #
     # Read parameters from dictionary
     #
