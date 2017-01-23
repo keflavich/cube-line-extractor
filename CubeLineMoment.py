@@ -324,10 +324,12 @@ if __name__ == "__main__":
         params = yaml.load(fh)
 
     print(params)
+
+
     params['my_line_list'] = list(map(float, params['my_line_list'].split(", ")))
     params['my_line_widths'] = list(map(float, params['my_line_widths'].split(", ")))
-    params['noisemapbright_baseline'] = np.array(map(int, params['noisemapbright_baseline'].strip("()").split(",")))
-    params['noisemap_baseline'] = np.array(map(int, params['noisemap_baseline'].strip("()").split(",")))
+    params['noisemapbright_baseline'] = np.array(params['noisemapbright_baseline'])
+    params['noisemap_baseline'] = np.array(params['noisemap_baseline'])
     #
     # Read parameters from dictionary
     #
