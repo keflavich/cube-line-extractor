@@ -123,7 +123,7 @@ def cubelinemoment(cube, cuberegion, spatialmaskcube, spatialmaskcuberegion,
     #target = 'NGC4945'
 
     #    brightest_line_frequency = 219.560358*u.GHz # C18O 2-1
-    brightest_line_frequency = u.Quantityebrightest_line_frequency, u.GHz) # C18O 2-1
+    brightest_line_frequency = u.Quantity(brightest_line_frequency, u.GHz) # C18O 2-1
     #    width_line = 218.222192*u.GHz # H2CO 3(03)-2(02)
     width_line_frequency = u.Quantity(width_line_frequency, u.GHz) # H2CO 3(03)-2(02)
 
@@ -135,7 +135,7 @@ def cubelinemoment(cube, cuberegion, spatialmaskcube, spatialmaskcuberegion,
     # ADAM'S ADDITIONS HERE
     # Use the H2CO 303_202 line (H2COJ32K02) as a mask for line widths...
     vcube = cube.with_spectral_unit(u.km/u.s, rest_value=width_line_frequency,
-                                velocity_convention='optical')
+                                    velocity_convention='optical')
     width_map = vcube.linewidth_sigma() # or vcube.moment2(axis=0)**0.5
     centroid_map = vcube.moment1(axis=0)
     max_map = cube.max(axis=0)
