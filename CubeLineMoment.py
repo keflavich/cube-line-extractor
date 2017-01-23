@@ -26,25 +26,81 @@ import yaml
 
 
 def cubelinemoment(cube, cuberegion, spatialmaskcube, spatialmaskcuberegion,
-                   vz, target, brightest_line, width_line, width,
-                   noisemapbright_baseline, noisemap_baseline, my_line_list,
-                   my_line_widths, my_line_names, signal_mask_limit,
-                   spatial_mask_limit):
+                   target, vz, brightest_line_frequency, width_line_frequency,
+                   linewidth_guess, noisemapbright_baseline, noisemap_baseline,
+                   my_line_list, my_line_widths, my_line_names,
+                   signal_mask_limit, spatial_mask_limit):
+    """
+    For a given cube file, read it and compute the moments (0,1,2) for a
+    selection of spectral lines.  This code is highly configurable.
+
+    In the parameter description, 'PPV' refers to position-position-velocity,
+    and all cubes are expected to be in this space.  Velocity is
+    generally interchangeable with frequency, but many operations must be
+    performed in velocity space.
+
+    Parameters
+    ----------
+    cube : str
+        The cube file name
+    cuberegion : str, optional
+        A ds9 region file specifying a spatial region to extract from the cube
+    spatialmaskcube : str
+        Filename of a cube that specifies the PPV region over which the moments
+        will be extracted.
+    spatialmaskcuberegion : str, optional
+        A ds9 region file specifying a spatial region to extract from the
+        spatial mask cube.  Should generally be the same as cuberegion.
+        NOTE TO JEFF: should this *always* be the same as cuberegion?
+    vz : `astropy.units.Quantity` with km/s equivalence
+        The line-of-sight velocity of the source, e.g., the redshift.
+    target : str
+        Name of the source.  Used when writing output files.
+    brightest_line_frequency : `astropy.units.Quantity` with Hz equivalence
+        The frequency of the brightest line, used to establish the cube volume
+        over which to compute moments for other lines
+    width_line_frequency : `astropy.units.Quantity` with Hz equivalence
+        The central frequency of the line used to compute the width (moment 2)
+    linewidth_guess : `astropy.units.Quantity` with km/s equivalence
+        The approximate full-width zero-intensity of the lines.  This parameter
+        is used to crop out regions of the cubes around line centers.  It
+        should be larger than the expected FWHM line width.
+    noisemapbright_baseline : list of lists
+        A list of pairs of indices over which the noise can be computed from
+        the 'bright' cube
+        NOTE TO JEFF: It would probably be better to specify this in GHz or
+        km/s.  That will require a slight change in the code, but will make
+        it more robust to changes in, e.g., linewidth or other parameters
+        that can affect the cube shape.
+    noisemap_baseline : list of lists
+        A list of pairs of indices over which the noise can be computed from
+        the main cube
+    my_line_list : `astropy.units.Quantity` with Hz equivalence
+        An array of line centers to compute the moments of
+    my_line_widths : `astropy.units.Quantity` with km/s equivalence
+        An array of line widths matched to ``my_line_list``.
+    my_line_names : list of strings
+        A list of names matched to ``my_line_list`` and ``my_line_widths``.
+        Used to specify the output filename.
+    signal_mask_limit : float
+        Factor in n-sigma above which to apply threshold to data.
+    spatial_mask_limit : float
+        Factor in n-sigma above which to apply threshold to data.
+
+    Returns
+    -------
+    None.  Outputs are saved to files in the momentX/ subdirectory,
+    where X is in {0,1,2}
+    """
 
     # Read the FITS cube
     # And change the units back to Hz
-    # and cut out a region that only includes the Galaxy (so we don't have to worry
+    cube = SpectralCube.read(cube).with_spectral_unit(u.Hz)
+
+    # cut out a region that only includes the Galaxy (so we don't have to worry
     # about masking later)
-    #
-    # The following for NGC253-H2COJ32K02...
-    #    cube = SpectralCube.read('NGC253-H2COJ32K02-Feather-line-All.fits').with_spectral_unit(u.Hz).subcube_from_ds9region(pyregion.open('ngc253boxband6tight.reg'))
-    cube = SpectralCube.read(cube).with_spectral_unit(u.Hz).subcube_from_ds9region(pyregion.open(cuberegion))
-    # The following for NGC4945-H2COJ32K02...
-    #cube = SpectralCube.read('NGC4945-H2COJ32K02-Feather-line.fits').with_spectral_unit(u.Hz).subcube_from_ds9region(pyregion.open('ngc4945boxband6.reg'))
-    # The following for NGC253-H2COJ54K23...
-    #cube = SpectralCube.read('NGC253-H2COJ54K23-Feather-line.fits').with_spectral_unit(u.Hz).subcube_from_ds9region(pyregion.open('ngc253box.reg'))
-    # The following for NGC253-H2COJ54K1...
-    #cube = SpectralCube.read('NGC253-H2COJ54K1-Feather-line.fits').with_spectral_unit(u.Hz).subcube_from_ds9region(pyregion.open('ngc253box.reg'))
+    if cuberegion is not None:
+        cube = cube.subcube_from_ds9region(pyregion.open(cuberegion))
 
     # --------------------------
     # Define a spatial mask that guides later calculations by defining where
@@ -66,19 +122,19 @@ def cubelinemoment(cube, cuberegion, spatialmaskcube, spatialmaskcuberegion,
     #    target = 'NGC253'
     #target = 'NGC4945'
 
-    #    brightest_line = 219.560358*u.GHz # C18O 2-1
-    brightest_line = brightest_line*u.GHz # C18O 2-1
+    #    brightest_line_frequency = 219.560358*u.GHz # C18O 2-1
+    brightest_line_frequency = u.Quantityebrightest_line_frequency, u.GHz) # C18O 2-1
     #    width_line = 218.222192*u.GHz # H2CO 3(03)-2(02)
-    width_line = width_line*u.GHz # H2CO 3(03)-2(02)
+    width_line_frequency = u.Quantity(width_line_frequency, u.GHz) # H2CO 3(03)-2(02)
 
     # Assume you have a constant expected width (HWZI) for the brightest line
     # Note: This HWZI should be larger than those assumed in the line extraction loop below...
     #    width = 80*u.km/u.s
-    width = width*u.km/u.s
+    linewidth_guess = u.Quantity(linewidth_guess, u.km/u.s)
 
     # ADAM'S ADDITIONS HERE
     # Use the H2CO 303_202 line (H2COJ32K02) as a mask for line widths...
-    vcube = cube.with_spectral_unit(u.km/u.s, rest_value=width_line,
+    vcube = cube.with_spectral_unit(u.km/u.s, rest_value=width_line_frequency,
                                 velocity_convention='optical')
     width_map = vcube.linewidth_sigma() # or vcube.moment2(axis=0)**0.5
     centroid_map = vcube.moment1(axis=0)
@@ -86,13 +142,15 @@ def cubelinemoment(cube, cuberegion, spatialmaskcube, spatialmaskcuberegion,
     #max_width = width_map.max() # should be ~150 km/s?
     #max_fwhm_width = max_width * (8*np.log(2))**0.5 # convert from sigma to FWHM
 
+    # Create a copy of the SpatialMaskCube with velocity units
+    spatialmask_Vcube = spatialmaskcube.with_spectral_unit(u.km/u.s,
+                                                           rest_value=brightest_line,
+                                                           velocity_convention='optical')
 
     # Use the brightest line to identify the appropriate peak velocities, but ONLY
     # from a slab including +/- width:
-    brightest_cube = spatialmaskcube.with_spectral_unit(u.km/u.s,
-                                                    rest_value=brightest_line,
-                                                    velocity_convention='optical').spectral_slab(vz-width,
-                                                                                                 vz+width)
+    brightest_cube = spatialmask_Vcube.spectral_slab(vz-linewidth_guess,
+                                                     vz+linewidth_guess)
 
     peak_velocity = brightest_cube.spectral_axis[brightest_cube.argmax(axis=0)]
     #pl.figure(2).clf()
@@ -109,9 +167,6 @@ def cubelinemoment(cube, cuberegion, spatialmaskcube, spatialmaskcuberegion,
     # Channel selection matches that used for continuum subtraction
     #
     # From NGC253 H213COJ32K1 spectral baseline
-    #    noisemapbright = spatialmaskcube[150:180,:,:].std(axis=0)
-    # JGM: Had to go back to defining noisemapbright_baseline in function as param input of list does not seem to work
-    #noisemapbright_baseline = [(150,180)]
     inds = np.arange(cube.shape[0])
     mask = np.zeros_like(inds, dtype='bool')
     for low,high in noisemapbright_baseline:
@@ -340,8 +395,8 @@ if __name__ == "__main__":
     print(params)
 
 
-    params['my_line_list'] = list(map(float, params['my_line_list'].split(", ")))
-    params['my_line_widths'] = list(map(float, params['my_line_widths'].split(", ")))
+    params['my_line_list'] = u.Quantity(list(map(float, params['my_line_list'].split(", "))), u.GHz)
+    params['my_line_widths'] = u.Quantity(list(map(float, params['my_line_widths'].split(", "))), u.km/u.s)
 
     # Read parameters from dictionary
     #
