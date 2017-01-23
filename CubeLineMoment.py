@@ -144,7 +144,7 @@ def cubelinemoment(cube, cuberegion, spatialmaskcube, spatialmaskcuberegion,
 
     # Create a copy of the SpatialMaskCube with velocity units
     spatialmask_Vcube = spatialmaskcube.with_spectral_unit(u.km/u.s,
-                                                           rest_value=brightest_line,
+                                                           rest_value=brightest_line_frequency,
                                                            velocity_convention='optical')
 
     # Use the brightest line to identify the appropriate peak velocities, but ONLY
