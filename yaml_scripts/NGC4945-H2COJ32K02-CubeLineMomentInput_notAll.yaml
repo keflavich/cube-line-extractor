@@ -1,9 +1,9 @@
-cube: NGC253-H2COJ32K02-Feather-line-All.fits
-cuberegion: ngc253boxband6tight.reg
-spatialmaskcube: NGC253-H213COJ32K1-Feather-line-All.fits
-spatialmaskcuberegion: ngc253boxband6tight.reg
-vz: 258.8
-target: NGC253
+cube: NGC4945-H2COJ32K02-Feather-line.fits
+cuberegion: ngc4945boxband6.reg
+spatialmaskcube: NGC4945-H213COJ32K1-Feather-line.fits
+spatialmaskcuberegion: ngc4945boxband6.reg
+vz: 538.2
+target: NGC4945
 brightest_line: 219.560358
 width_line: 218.222192
 width: 80
