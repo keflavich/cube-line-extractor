@@ -1,7 +1,7 @@
-cube: NGC253-H2COJ32K02-Feather-line-All.fits
-cuberegion: ngc253boxband6tight.reg
-spatialmaskcube: NGC253-H213COJ32K1-Feather-line-All.fits
-spatialmaskcuberegion: ngc253boxband6tight.reg
+cube: FITS/NGC253-H2COJ32K02-Feather-line-All.fits
+cuberegion: regions/ngc253boxband6tight.reg
+spatialmaskcube: FITS/NGC253-H213COJ32K1-Feather-line-All.fits
+spatialmaskcuberegion: regions/ngc253boxband6tight.reg
 vz: 258.8
 target: NGC253
 brightest_line_frequency: 219.560358
