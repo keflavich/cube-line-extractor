@@ -1,0 +1,16 @@
+cube: NGC253-H2COJ32K02-Feather-line-All.fits
+cuberegion: ngc253boxband6tight.reg
+spatialmaskcube: NGC253-H213COJ32K1-Feather-line-All.fits
+spatialmaskcuberegion: ngc253boxband6tight.reg
+vz: 258.8
+target: NGC253
+brightest_line: 219.560358
+width_line: 218.222192
+width: 80
+noisemapbright_baseline: [[150,180]]
+noisemap_baseline: [[9, 14], [40, 42], [72, 74], [114, 122], [138, 143], [245, 254], [342, 364]]
+my_line_list: 217.289800, 217.299162, 217.467150, 217.517110, 217.802057, 217.88639, 217.943821, 218.15897, 218.222192, 218.324711, 218.440050, 218.475632, 218.760071, 218.85439, 218.9033555, 218.981019
+my_line_widths: 50.0, 50.0, 60.0, 40.0, 40.0, 40.0, 40.0, 40.0, 40.0, 40.0, 40.0, 40.0, 40.0, 50.0, 40.0, 40.0
+my_line_names: 13CNF122, CH3OH67, 13CNF132, CH3OCHO88, CH3OCHO4847, CH3OH2020, CH3OCHO4546, CH3OCHO??, H2COJ32K0, HC3N2423v0, CH3OH43, H2COJ32K221, H2COJ32K210, HC3N2423v6, OCS1817, HNCO109
+signal_mask_limit: 3
+spatial_mask_limit: 3
