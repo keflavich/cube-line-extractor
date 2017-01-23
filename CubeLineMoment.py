@@ -398,6 +398,7 @@ if __name__ == "__main__":
 
     params['my_line_list'] = u.Quantity(list(map(float, params['my_line_list'].split(", "))), u.GHz)
     params['my_line_widths'] = u.Quantity(list(map(float, params['my_line_widths'].split(", "))), u.km/u.s)
+    params['my_line_names'] = params['my_line_names'].split(", ")
 
     # Read parameters from dictionary
     #

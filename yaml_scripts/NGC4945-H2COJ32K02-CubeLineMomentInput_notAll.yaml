@@ -4,9 +4,9 @@ spatialmaskcube: NGC4945-H213COJ32K1-Feather-line.fits
 spatialmaskcuberegion: ngc4945boxband6.reg
 vz: 538.2
 target: NGC4945
-brightest_line: 219.560358
-width_line: 218.222192
-width: 80
+brightest_line_frequency: 219.560358
+width_line_frequency: 218.222192
+linewidth_guess: 80
 noisemapbright_baseline: [[150,180]]
 noisemap_baseline: [[9, 14], [40, 42], [72, 74], [114, 122], [138, 143], [245, 254], [342, 364]]
 my_line_list: 217.289800, 217.299162, 217.467150, 217.517110, 217.802057, 217.88639, 217.943821, 218.15897, 218.222192, 218.324711, 218.440050, 218.475632, 218.760071, 218.85439, 218.9033555, 218.981019
