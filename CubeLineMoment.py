@@ -90,6 +90,11 @@ def cubelinemoment(cube, cuberegion, spatialmaskcube, spatialmaskcuberegion,
     where X is in {0,1,2}
     """
 
+    # parameter checking
+    if len(my_line_names) != len(my_line_list) or len(my_line_names) != len(my_line_widths):
+        raise ValueError("Line lists (central frequency, names, and widths) "
+                         "have different lengths")
+
     # Read the FITS cube
     # And change the units back to Hz
     cube = SpectralCube.read(cube).with_spectral_unit(u.Hz)
