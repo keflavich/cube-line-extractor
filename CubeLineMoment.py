@@ -368,6 +368,7 @@ def cubelinemoment(cube, cuberegion, spatialmaskcube, spatialmaskcuberegion,
             mom.quicklook() #filename='moment{0}/{1}_{2}_moment{0}.png'.format(moment,target,line_name))
             mom.FITSFigure.colorbar.show(axis_label_text=labels[moment].format(mom.unit.to_string('latex_inline')))
             mom.FITSFigure.save(filename='moment{0}/{1}_{2}_moment{0}.png'.format(moment,target,line_name))
+            mom.FITSFigure.close()
 
 if __name__ == "__main__":
 
