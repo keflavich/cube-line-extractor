@@ -23,10 +23,10 @@ log.setLevel('CRITICAL') # disable most logger messages
 
 
 def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
-                         spatialmaskcuberegion, vz,
-                         brightest_line_frequency, width_line_frequency,
-                         linewidth_guess, noisemapbright_baseline,
-                         noisemap_baseline, spatial_mask_limit):
+                         spatialmaskcuberegion, vz, brightest_line_frequency,
+                         width_line_frequency, linewidth_guess,
+                         noisemapbright_baseline, noisemap_baseline,
+                         spatial_mask_limit, **kwargs):
     """
     For a given cube file, read it and compute the moments (0,1,2) for a
     selection of spectral lines.  This code is highly configurable.
@@ -72,22 +72,13 @@ def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
     noisemap_baseline : list of lists
         A list of pairs of indices over which the noise can be computed from
         the main cube
-    my_line_list : `astropy.units.Quantity` with Hz equivalence
-        An array of line centers to compute the moments of
-    my_line_widths : `astropy.units.Quantity` with km/s equivalence
-        An array of line widths matched to ``my_line_list``.
-    my_line_names : list of strings
-        A list of names matched to ``my_line_list`` and ``my_line_widths``.
-        Used to specify the output filename.
-    signal_mask_limit : float
-        Factor in n-sigma above which to apply threshold to data.
     spatial_mask_limit : float
         Factor in n-sigma above which to apply threshold to data.
 
+
     Returns
     -------
-    None.  Outputs are saved to files in the momentX/ subdirectory,
-    where X is in {0,1,2}
+    A variety of cubes and maps
     """
 
     # Read the FITS cube
@@ -201,9 +192,37 @@ def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
 
 
 
-def other_function_placeholder(peak_velocity, signal_mask_limit,
-                               spatial_mask_limit, my_line_list,
-                               my_line_widths, my_line_names, target):
+def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map, noisemap,
+                             signal_mask_limit, spatial_mask_limit,
+                             my_line_list, my_line_widths, my_line_names,
+                             target, spatial_mask, width_map, **kwargs):
+    """
+    Given the appropriate setup, extract moment maps for each of the specified
+    lines
+
+    Parameters
+    ----------
+    peak_velocity : `astropy.units.Quantity` with km/s equivalence
+    centroid_map : `astropy.units.Quantity` with km/s equivalence
+    max_map : `astropy.units.Quantity` with brightness or flux unit
+    noisemap : `astropy.units.Quantity` with brightness or flux unit
+    my_line_list : `astropy.units.Quantity` with Hz equivalence
+        An array of line centers to compute the moments of
+    my_line_widths : `astropy.units.Quantity` with km/s equivalence
+        An array of line widths matched to ``my_line_list``.
+    my_line_names : list of strings
+        A list of names matched to ``my_line_list`` and ``my_line_widths``.
+        Used to specify the output filename.
+    spatial_mask_limit : float
+        Factor in n-sigma above which to apply threshold to data.
+    signal_mask_limit : float
+        Factor in n-sigma above which to apply threshold to data.
+
+    Returns
+    -------
+    None.  Outputs are saved to files in the momentX/ subdirectory,
+    where X is in {0,1,2}
+    """
 
     # parameter checking
     if len(my_line_names) != len(my_line_list) or len(my_line_names) != len(my_line_widths):
@@ -221,6 +240,14 @@ def other_function_placeholder(peak_velocity, signal_mask_limit,
         line_width = u.Quantity(line_width,u.km/u.s)
         vcube = cube.with_spectral_unit(u.km/u.s, rest_value=line_freq,
                                         velocity_convention='optical')
+
+        print(locals().keys())
+        print(globals().keys())
+        if 'cube' in locals():
+            raise ValueError("Cube found in locals; this is literally impossible.")
+        else:
+            raise ValueError("Everything's right except your syntax checker.")
+
         subcube = vcube.spectral_slab(peak_velocity.min()-line_width,
                                       peak_velocity.max()+line_width)
 
@@ -296,7 +323,11 @@ def other_function_placeholder(peak_velocity, signal_mask_limit,
             mom.FITSFigure.save(filename='moment{0}/{1}_{2}_moment{0}.png'.format(moment,target,line_name))
             mom.FITSFigure.close()
 
-if __name__ == "__main__":
+def main():
+    """
+    To avoid ridiculous namespace clashes
+    http://stackoverflow.com/questions/4775579/main-and-scoping-in-python
+    """
 
     import argparse
 
@@ -330,10 +361,20 @@ if __name__ == "__main__":
     # Read parameters from dictionary
 
     (cube, spatialmaskcube, spatial_mask, noisemap, noisemapbright,
-     centroid_map, width_map, max_map, peak_velocity) = cubelinemoment(**params)
+     centroid_map, width_map, max_map, peak_velocity) = cubelinemoment_setup(**params)
 
-    guesses = np.array([max_map.value, centroid_map.value, width_map.value])
-    import pyspeckit
-    vcube = cube.with_spectral_unit(u.km/u.s, velocity_convention='optical')
-    pcube = pyspeckit.SpectralCube(cube=vcube)
-    pcube.fiteach(guesses=guesses, start_from_point=(150,150), errmap=noisemap)
+    cubelinemoment_multiline(cube=cube, spatial_mask=spatial_mask,
+                             peak_velocity=peak_velocity,
+                             centroid_map=centroid_map, max_map=max_map,
+                             noisemap=noisemap, width_map=width_map, **params)
+
+
+    if False:
+        guesses = np.array([max_map.value, centroid_map.value, width_map.value])
+        import pyspeckit
+        vcube = cube.with_spectral_unit(u.km/u.s, velocity_convention='optical')
+        pcube = pyspeckit.SpectralCube(cube=vcube)
+        pcube.fiteach(guesses=guesses, start_from_point=(150,150), errmap=noisemap)
+
+if __name__ == "__main__":
+    main()
