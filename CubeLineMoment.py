@@ -241,13 +241,6 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map, noisema
         vcube = cube.with_spectral_unit(u.km/u.s, rest_value=line_freq,
                                         velocity_convention='optical')
 
-        print(locals().keys())
-        print(globals().keys())
-        if 'cube' in locals():
-            raise ValueError("Cube found in locals; this is literally impossible.")
-        else:
-            raise ValueError("Everything's right except your syntax checker.")
-
         subcube = vcube.spectral_slab(peak_velocity.min()-line_width,
                                       peak_velocity.max()+line_width)
 
@@ -362,6 +355,8 @@ def main():
 
     (cube, spatialmaskcube, spatial_mask, noisemap, noisemapbright,
      centroid_map, width_map, max_map, peak_velocity) = cubelinemoment_setup(**params)
+
+    params.pop('cube')
 
     cubelinemoment_multiline(cube=cube, spatial_mask=spatial_mask,
                              peak_velocity=peak_velocity,
