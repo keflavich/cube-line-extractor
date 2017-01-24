@@ -370,7 +370,8 @@ def main():
         vcube = cube.with_spectral_unit(u.km/u.s, velocity_convention='optical')
         pcube = pyspeckit.Cube(cube=vcube)
         pcube.mapplot.plane = max_map.value
-        pcube.fiteach(guesses=guesses, start_from_point=(150,150), errmap=noisemap)
+        pcube.fiteach(guesses=guesses, start_from_point=(150,150),
+                      errmap=noisemap.value)
 
 if __name__ == "__main__":
     main()
