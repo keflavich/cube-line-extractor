@@ -368,7 +368,8 @@ def main():
         guesses = np.array([max_map.value, centroid_map.value, width_map.value])
         import pyspeckit
         vcube = cube.with_spectral_unit(u.km/u.s, velocity_convention='optical')
-        pcube = pyspeckit.SpectralCube(cube=vcube)
+        pcube = pyspeckit.Cube(cube=vcube)
+        pcube.mapplot.plane = max_map.value
         pcube.fiteach(guesses=guesses, start_from_point=(150,150), errmap=noisemap)
 
 if __name__ == "__main__":
