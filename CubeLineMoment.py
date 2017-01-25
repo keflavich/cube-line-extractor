@@ -13,12 +13,14 @@ from __future__ import print_function
 import numpy as np
 from spectral_cube import SpectralCube
 from astropy import units as u
+from astropy import constants
 import pyregion
 import pylab as pl
 import yaml
+import pyspeckit
 
-from astropy import log
-log.setLevel('CRITICAL') # disable most logger messages
+#from astropy import log
+#log.setLevel('CRITICAL') # disable most logger messages
 
 
 
@@ -192,10 +194,11 @@ def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
 
 
 
-def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map, noisemap,
-                             signal_mask_limit, spatial_mask_limit,
+def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
+                             noisemap, signal_mask_limit, spatial_mask_limit,
                              my_line_list, my_line_widths, my_line_names,
-                             target, spatial_mask, width_map, **kwargs):
+                             target, spatial_mask, width_map, fit=False,
+                             **kwargs):
     """
     Given the appropriate setup, extract moment maps for each of the specified
     lines
@@ -291,7 +294,8 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map, noisema
         # numpy knows how to combine them properly
         # (signal_mask is a different type, so it can't be combined with the others
         # yet - I'll add a feature request for that)
-        msubcube = subcube.with_mask(mask & spatial_mask).with_mask(signal_mask).with_mask(width_mask_cube)
+        msubcube = subcube.with_mask(mask &
+                                     spatial_mask).with_mask(signal_mask).with_mask(width_mask_cube)
 
         # Now write output.  Note that moment0, moment1, and moment2 directories
         # must already exist...
@@ -301,6 +305,8 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map, noisema
                   #2: '$\sigma_v$ [{0}]',
                   2: '$FWHM$ [{0}]',
                  }
+
+        moments = {}
 
         for moment in (0,1,2):
             mom = msubcube.moment(order=moment, axis=0)
@@ -315,6 +321,57 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map, noisema
             mom.FITSFigure.colorbar.show(axis_label_text=labels[moment].format(mom.unit.to_string('latex_inline')))
             mom.FITSFigure.save(filename='moment{0}/{1}_{2}_moment{0}.png'.format(moment,target,line_name))
             mom.FITSFigure.close()
+            moments[moment] = mom
+
+        # finally, optionally, do some pyspeckit fitting
+        if fit:
+            pcube = pyspeckit.Cube(cube=msubcube)
+            max_map_sub = msubcube.max(axis=0).value
+            pcube.mapplot.plane = max_map_sub
+            guesses = np.array([max_map_sub, moments[1].value,
+                                moments[2].value / (8*np.log(2))**0.5])
+            maskmap = (np.all(guesses > 0, axis=0) &
+                       (msubcube.mask.include().sum(axis=0) > 3))
+            print("Fitting {0} spectra with pyspeckit".format(maskmap.sum()))
+            pcube.fiteach(guesses=guesses, start_from_point='center',
+                          errmap=noisemap.value, signal_cut=0, maskmap=maskmap)
+            pcube.write_fit('pyspeckit_fits/{0}_{1}_fitcube.fits'.format(target, line_name))
+
+
+def pyspeckit_fit_cube(cube, max_map, centroid_map, width_map, noisemap,
+                       lines, vz):
+    """
+    This is experimental and doesn't really work: the idea here is to fit all
+    lines in the cube simultaneously.
+    """
+
+    vz = u.Quantity(vz, u.km/u.s)
+
+    fcube = cube.with_spectral_unit(u.GHz)
+
+    def inrange(x):
+        return (x < fcube.spectral_extrema[1] and
+                x > fcube.spectral_extrema[0])
+
+    lines_in_cube = {linename: linedata
+                     for linename, linedata in lines.items()
+                     if inrange(linedata['frequency']*(1-vz/constants.c))}
+
+    frequencies = sorted(linedata['frequency'] for linedata in lines_in_cube.values())
+
+    line_guesses = [[max_map.value,
+                     ((1-centroid_map/constants.c)*frq).to(u.GHz).value,
+                     ((width_map/constants.c)*frq).to(u.GHz).value]
+                    for frq in frequencies]
+    line_guesses = np.array([x for y in line_guesses for x in y])
+
+    guesses = np.array([max_map.value, centroid_map.value, width_map.value])
+    #vcube = cube.with_spectral_unit(u.km/u.s, velocity_convention='optical')
+    pcube = pyspeckit.Cube(cube=fcube)
+    pcube.mapplot.plane = max_map.value
+    pcube.fiteach(guesses=guesses, start_from_point=(150,150),
+                  errmap=noisemap.value)
+
 
 def main():
     """
@@ -361,17 +418,21 @@ def main():
     cubelinemoment_multiline(cube=cube, spatial_mask=spatial_mask,
                              peak_velocity=peak_velocity,
                              centroid_map=centroid_map, max_map=max_map,
-                             noisemap=noisemap, width_map=width_map, **params)
+                             noisemap=noisemap, width_map=width_map, fit=True,
+                             **params)
 
+    # useful reformatting of the lines to pass to the pyspeckit fitter if we
+    # ever choose to use it
+    lines = dict(zip(params['my_line_names'],
+                     [{'frequency':frq,
+                      'width':wid}
+                      for frq,wid in zip(params['my_line_list'],
+                                         params['my_line_widths'])]
+                    ))
 
-    if False:
-        guesses = np.array([max_map.value, centroid_map.value, width_map.value])
-        import pyspeckit
-        vcube = cube.with_spectral_unit(u.km/u.s, velocity_convention='optical')
-        pcube = pyspeckit.Cube(cube=vcube)
-        pcube.mapplot.plane = max_map.value
-        pcube.fiteach(guesses=guesses, start_from_point=(150,150),
-                      errmap=noisemap.value)
+    return locals()
+
 
 if __name__ == "__main__":
-    main()
+    new_locals = main()
+    locals().update(new_locals)
