@@ -22,6 +22,9 @@ import pyspeckit
 #from astropy import log
 #log.setLevel('CRITICAL') # disable most logger messages
 
+# suppress errors when we do np.nan > 5, etc.
+np.seterr(invalid='ignore')
+
 
 
 def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
@@ -323,8 +326,14 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             mom.FITSFigure.close()
             moments[moment] = mom
 
+        subcube.write('subcubes/{0}_{1}_subcube.fits'.format(target,
+                                                             line_name),
+                      overwrite=True)
+
         # finally, optionally, do some pyspeckit fitting
         if fit:
+            msubcube_allvalid = msubcube._new_cube_with()
+            msubcube_allvalid._mask = None
             pcube = pyspeckit.Cube(cube=msubcube)
             max_map_sub = msubcube.max(axis=0).value
             pcube.mapplot.plane = max_map_sub
@@ -334,8 +343,15 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
                        (msubcube.mask.include().sum(axis=0) > 3))
             print("Fitting {0} spectra with pyspeckit".format(maskmap.sum()))
             pcube.fiteach(guesses=guesses, start_from_point='center',
-                          errmap=noisemap.value, signal_cut=0, maskmap=maskmap)
-            pcube.write_fit('pyspeckit_fits/{0}_{1}_fitcube.fits'.format(target, line_name))
+                          errmap=noisemap.value, signal_cut=0, maskmap=maskmap,
+                          limited=[(True,True),(True,True),(True,True)],
+                          limits=[(0,max_map_sub.max()*2),
+                                  (moments[1].value.min()-50, moments[1].value.max()+50),
+                                  (0, guesses[2,:,:].max()*2)],
+                         )
+            pcube.write_fit('pyspeckit_fits/{0}_{1}_fitcube.fits'.format(target,
+                                                                         line_name),
+                            overwrite=True)
 
 
 def pyspeckit_fit_cube(cube, max_map, centroid_map, width_map, noisemap,
