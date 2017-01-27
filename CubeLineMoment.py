@@ -5,7 +5,7 @@ an image cube.  Simply calculates moments over a defined HWZI for each line in b
 
 To run in ipython use:
 
-run ~/Python/CubeLineMoment.py
+>>> %run CubeLineMoment.py  inputfile.yaml
 
 """
 from __future__ import print_function
