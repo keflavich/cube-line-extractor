@@ -325,15 +325,15 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             hdu = mom.hdu
             hdu.header.update(cube.beam.to_header_keywords())
             hdu.header['OBJECT'] = cube.header['OBJECT']
-            hdu.writeto("moment{0}/{1}_{2}_moment{0}_widthscale{3:0.1f}_sncut{4:0.1f}.fits"
+            hdu.writeto("moment{0}/{1}_{2}_moment{0}_widthscale{3:0.1f}_sncut{4:0.1f}_widthcutscale{5:0.1f}.fits"
                         .format(moment, target, line_name, width_map_scaling,
-                                signal_mask_limit), overwrite=True)
+                                signal_mask_limit, width_cut_scaling), overwrite=True)
             pl.figure(1).clf()
             mom.quicklook() #filename='moment{0}/{1}_{2}_moment{0}.png'.format(moment,target,line_name))
             mom.FITSFigure.colorbar.show(axis_label_text=labels[moment].format(mom.unit.to_string('latex_inline')))
-            mom.FITSFigure.save(filename='moment{0}/{1}_{2}_moment{0}_widthscale{3:0.1f}_sncut{4:0.1f}.png'
+            mom.FITSFigure.save(filename='moment{0}/{1}_{2}_moment{0}_widthscale{3:0.1f}_sncut{4:0.1f}_widthcutscale{5:0.1f}.png'
                                 .format(moment, target, line_name,
-                                        width_map_scaling, signal_mask_limit))
+                                        width_map_scaling, signal_mask_limit, width_cut_scaling))
             mom.FITSFigure.close()
             moments[moment] = mom
 
