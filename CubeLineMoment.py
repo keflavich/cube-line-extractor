@@ -201,7 +201,8 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
                              noisemap, signal_mask_limit, spatial_mask_limit,
                              my_line_list, my_line_widths, my_line_names,
                              target, spatial_mask, width_map,
-                             width_scaling=1.0, fit=False, **kwargs):
+                             width_map_scaling=1.0, width_cut_scaling=1.0,
+                             fit=False, **kwargs):
     """
     Given the appropriate setup, extract moment maps for each of the specified
     lines
@@ -223,9 +224,12 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
         Factor in n-sigma above which to apply threshold to data.
     signal_mask_limit : float
         Factor in n-sigma above which to apply threshold to data.
-    width_scaling : float
+    width_map_scaling : float
         A factor by which to multiply the ``width_map`` when making the
-        position-velocity mask cube
+        position-velocity mask cube.
+    width_cut_scaling : float
+        The factor by which the cube cutout is expanded, so if this is != 1,
+        the extracted subcube will be larger.
 
     Returns
     -------
@@ -246,7 +250,7 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
     for line_name,line_freq,line_width in zip(my_line_names,my_line_list,my_line_widths):
 
         line_freq = u.Quantity(line_freq,u.GHz)
-        line_width = u.Quantity(line_width,u.km/u.s)
+        line_width = u.Quantity(line_width,u.km/u.s) * width_cut_scaling
         vcube = cube.with_spectral_unit(u.km/u.s, rest_value=line_freq,
                                         velocity_convention='optical')
 
@@ -263,7 +267,7 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
         assert centroid_map.unit.is_equivalent(u.km/u.s)
         gauss_mask_cube = np.exp(-(np.array(centroid_map)[None,:,:] -
                                    np.array(subcube.spectral_axis)[:,None,None])**2 /
-                                 (2*np.array(width_map*width_scaling)[None,:,:]**2))
+                                 (2*np.array(width_map*width_map_scaling)[None,:,:]**2))
         peak_sn = max_map / noisemap
 
         print("Peak S/N: {0}".format(np.nanmax(peak_sn)))
@@ -322,20 +326,24 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             hdu.header.update(cube.beam.to_header_keywords())
             hdu.header['OBJECT'] = cube.header['OBJECT']
             hdu.writeto("moment{0}/{1}_{2}_moment{0}_widthscale{3:0.1f}_sncut{4:0.1f}.fits"
-                        .format(moment, target, line_name, width_scaling,
+                        .format(moment, target, line_name, width_map_scaling,
                                 signal_mask_limit), overwrite=True)
             pl.figure(1).clf()
             mom.quicklook() #filename='moment{0}/{1}_{2}_moment{0}.png'.format(moment,target,line_name))
             mom.FITSFigure.colorbar.show(axis_label_text=labels[moment].format(mom.unit.to_string('latex_inline')))
             mom.FITSFigure.save(filename='moment{0}/{1}_{2}_moment{0}_widthscale{3:0.1f}_sncut{4:0.1f}.png'
                                 .format(moment, target, line_name,
-                                        width_scaling, signal_mask_limit))
+                                        width_map_scaling, signal_mask_limit))
             mom.FITSFigure.close()
             moments[moment] = mom
 
-        subcube.write('subcubes/{0}_{1}_subcube.fits'.format(target,
-                                                             line_name),
-                      overwrite=True)
+        if width_cut_scaling != 1:
+            subcube_outname = ('subcubes/{0}_{1}_width{2:0.1f}_subcube.fits'
+                               .format(target, line_name, width_cut_scaling))
+        else:
+            subcube_outname = ('subcubes/{0}_{1}_subcube.fits'
+                               .format(target, line_name))
+        subcube.write(subcube_outname, overwrite=True)
 
         # finally, optionally, do some pyspeckit fitting
         if fit:
@@ -449,7 +457,16 @@ def main():
                              peak_velocity=peak_velocity,
                              centroid_map=centroid_map, max_map=max_map,
                              noisemap=noisemap, width_map=width_map,
-                             width_scaling=2.0, fit=False,
+                             width_map_scaling=2.0, fit=False,
+                             signal_mask_limit=2.0,
+                             **params)
+
+    cubelinemoment_multiline(cube=cube, spatial_mask=spatial_mask,
+                             peak_velocity=peak_velocity,
+                             centroid_map=centroid_map, max_map=max_map,
+                             noisemap=noisemap, width_map=width_map,
+                             width_map_scaling=2.0, fit=False,
+                             width_cut_scaling=1.5,
                              signal_mask_limit=2.0,
                              **params)
 
