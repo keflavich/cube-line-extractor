@@ -5,7 +5,7 @@ an image cube.  Simply calculates moments over a defined HWZI for each line in b
 
 To run in ipython use:
 
->>> %run CubeLineMoment.py  inputfile.yaml
+>>> %run CubeLineMoment.py inputfile.yaml
 
 """
 from __future__ import print_function
@@ -28,7 +28,7 @@ np.seterr(invalid='ignore')
 
 
 def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
-                         spatialmaskcuberegion, vz, brightest_line_frequency,
+                         spatialmaskcuberegion, vz, target, brightest_line_frequency,
                          width_line_frequency, linewidth_guess,
                          noisemapbright_baseline, noisemap_baseline,
                          spatial_mask_limit, **kwargs):
@@ -64,7 +64,7 @@ def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
     width_line_frequency : `astropy.units.Quantity` with Hz equivalence
         The central frequency of the line used to compute the width (moment 2)
     linewidth_guess : `astropy.units.Quantity` with km/s equivalence
-        The approximate full-width zero-intensity of the lines.  This parameter
+        The approximate half-width zero-intensity of the lines.  This parameter
         is used to crop out regions of the cubes around line centers.  It
         should be larger than the expected FWHM line width.
     noisemapbright_baseline : list of lists
@@ -160,19 +160,23 @@ def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
     # Channel selection matches that used for continuum subtraction
     #
     # From NGC253 H213COJ32K1 spectral baseline
-    inds = np.arange(cube.shape[0])
+    inds = np.arange(spatialmaskcube.shape[0])
     mask = np.zeros_like(inds, dtype='bool')
     for low,high in noisemapbright_baseline:
         mask[low:high] = True
-    noisemapbright = cube.with_mask(mask[:,None,None]).std(axis=0)
+    noisemapbright = spatialmaskcube.with_mask(mask[:,None,None]).std(axis=0)
     # From NGC4945 H213COJ32K1 spectral baseline
     #noisemapbright = spatialmaskcube[165:185,:,:].std(axis=0)
     print("noisemapbright peak = {0}".format(np.nanmax(noisemapbright)))
 
     # Make a plot of the noise map...
-    pl.figure(2).clf()
-    pl.imshow(noisemapbright.value)
-    pl.colorbar()
+    #pl.figure(2).clf()
+    #pl.imshow(noisemapbright.value)
+    #pl.colorbar()
+    hdu = noisemapbright.hdu
+    hdu.header.update(spatialmaskcube.beam.to_header_keywords())
+    hdu.header['OBJECT'] = spatialmaskcube.header['OBJECT']
+    hdu.writeto("moment0/{0}_NoiseMapBright.fits".format(target),overwrite=True)
     #
     # Use 3*noisemap for spatial masking
     spatial_mask = peak_amplitude > spatial_mask_limit*noisemapbright
@@ -191,6 +195,10 @@ def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
     for low,high in noisemap_baseline:
         mask[low:high] = True
     noisemap = cube.with_mask(mask[:,None,None]).std(axis=0)
+    hdu = noisemap.hdu
+    hdu.header.update(cube.beam.to_header_keywords())
+    hdu.header['OBJECT'] = cube.header['OBJECT']
+    hdu.writeto("moment0/{0}_NoiseMap.fits".format(target),overwrite=True)
     
     return (cube, spatialmaskcube, spatial_mask, noisemap, noisemapbright,
             centroid_map, width_map, max_map, peak_velocity)
