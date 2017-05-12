@@ -130,10 +130,33 @@ def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
     vcube = cube.with_spectral_unit(u.km/u.s, rest_value=width_line_frequency,
                                     velocity_convention='optical')
     width_map = vcube.linewidth_sigma() # or vcube.moment2(axis=0)**0.5
+    fwhm_map = vcube.linewidth_fwhm() # FOR TESTING
+    sqrtmom2_map = vcube.moment2(axis=0)**0.5 # FOR TESTING
     centroid_map = vcube.moment1(axis=0)
     max_map = cube.max(axis=0)
     #max_width = width_map.max() # should be ~150 km/s?
     #max_fwhm_width = max_width * (8*np.log(2))**0.5 # convert from sigma to FWHM
+    # TESTING: Write width_map, centroid_map, max_map, and fwhm_map to FITS...
+    hdu = width_map.hdu
+    hdu.header.update(cube.beam.to_header_keywords())
+    hdu.header['OBJECT'] = cube.header['OBJECT']
+    hdu.writeto("moment0/{0}_WidthMap.fits".format(target),overwrite=True)
+    hdu = centroid_map.hdu
+    hdu.header.update(cube.beam.to_header_keywords())
+    hdu.header['OBJECT'] = cube.header['OBJECT']
+    hdu.writeto("moment0/{0}_CentroidMap.fits".format(target),overwrite=True)
+    hdu = max_map.hdu
+    hdu.header.update(cube.beam.to_header_keywords())
+    hdu.header['OBJECT'] = cube.header['OBJECT']
+    hdu.writeto("moment0/{0}_MaxMap.fits".format(target),overwrite=True)
+    hdu = fwhm_map.hdu
+    hdu.header.update(cube.beam.to_header_keywords())
+    hdu.header['OBJECT'] = cube.header['OBJECT']
+    hdu.writeto("moment0/{0}_FWHMMap.fits".format(target),overwrite=True)
+    hdu = sqrtmom2_map.hdu
+    hdu.header.update(cube.beam.to_header_keywords())
+    hdu.header['OBJECT'] = cube.header['OBJECT']
+    hdu.writeto("moment0/{0}_SQRTMOM2Map.fits".format(target),overwrite=True)
 
     # Create a copy of the SpatialMaskCube with velocity units
     spatialmask_Vcube = spatialmaskcube.with_spectral_unit(u.km/u.s,
@@ -179,7 +202,11 @@ def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
     hdu.writeto("moment0/{0}_NoiseMapBright.fits".format(target),overwrite=True)
     #
     # Use 3*noisemap for spatial masking
-    spatial_mask = peak_amplitude > spatial_mask_limit*noisemapbright
+    spatial_mask = np.fabs(peak_amplitude) > spatial_mask_limit*noisemapbright
+    #hdu = spatial_mask.hdu
+    #hdu.header.update(spatialmaskcube.beam.to_header_keywords())
+    #hdu.header['OBJECT'] = spatialmaskcube.header['OBJECT']
+    #hdu.writeto("moment0/{0}_SpatialMask.fits".format(target),overwrite=True)
     # --------------------------
 
     # Now process spw of interest...
@@ -285,7 +312,7 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
         # (this can be modified as you see fit)
         threshold = np.exp(-(peak_sn**2) / 2.)
         print("Highest Threshold: {0}".format(np.nanmax(threshold)))
-        print("Lowest Threshold: {0}".format((threshold[threshold>0].min())))
+        #print("Lowest Threshold: {0}".format((threshold[threshold>0].min())))
 
         # this will compare the gaussian cube to the threshold on a (spatial)
         # pixel-by-pixel basis
@@ -312,8 +339,11 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
         # numpy knows how to combine them properly
         # (signal_mask is a different type, so it can't be combined with the others
         # yet - I'll add a feature request for that)
+        #msubcube = subcube.with_mask(mask &
+        #                             spatial_mask).with_mask(signal_mask).with_mask(width_mask_cube)
+        # DROP width_mask masking for now (seems to be broken)...
         msubcube = subcube.with_mask(mask &
-                                     spatial_mask).with_mask(signal_mask).with_mask(width_mask_cube)
+                                     spatial_mask).with_mask(signal_mask)
 
         # Now write output.  Note that moment0, moment1, and moment2 directories
         # must already exist...
@@ -477,6 +507,19 @@ def main():
                              width_cut_scaling=1.5,
                              signal_mask_limit=2.0,
                              **params)
+
+    cubelinemoment_multiline(cube=cube, spatial_mask=spatial_mask,
+                             peak_velocity=peak_velocity,
+                             centroid_map=centroid_map, max_map=max_map,
+                             noisemap=noisemap, width_map=width_map,
+                             width_map_scaling=1.0, fit=False,
+                             width_cut_scaling=1.0,
+                             signal_mask_limit=2.0,
+                             **params)
+
+    # Clean up open figures
+    for ii in pl.get_fignums():
+        pl.close()
 
     # useful reformatting of the lines to pass to the pyspeckit fitter if we
     # ever choose to use it
