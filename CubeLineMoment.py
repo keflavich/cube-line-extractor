@@ -332,11 +332,24 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
         # numpy knows how to combine them properly
         # (signal_mask is a different type, so it can't be combined with the others
         # yet - I'll add a feature request for that)
-        #msubcube = subcube.with_mask(mask &
-        #                             spatial_mask).with_mask(signal_mask).with_mask(width_mask_cube)
-        # DROP width_mask masking for now (seems to be broken)...
         msubcube = subcube.with_mask(velocity_range_mask &
-                                     spatial_mask).with_mask(signal_mask)
+                                     spatial_mask).with_mask(signal_mask).with_mask(width_mask_cube)
+
+        # DEBUG: show the values from all the masks
+        pl.figure(10).clf()
+        pl.subplot(2,2,1).imshow(velocity_range_mask.max(axis=0), origin='lower', interpolation='nearest')
+        pl.subplot(2,2,1).set_title("velocity range mask")
+        pl.subplot(2,2,2).imshow(spatial_mask, origin='lower', interpolation='nearest')
+        pl.subplot(2,2,2).set_title("spatial mask")
+        pl.subplot(2,2,3).imshow(signal_mask.include().max(axis=0), origin='lower', interpolation='nearest')
+        pl.subplot(2,2,3).set_title("signal mask")
+        pl.subplot(2,2,4).imshow(width_mask_cube.max(axis=0), origin='lower', interpolation='nearest')
+        pl.subplot(2,2,4).set_title("width mask")
+        pl.savefig("DEBUG_plot_{0}_{1}.png".format(target, line_name))
+
+        ## DROP width_mask masking for now (seems to be broken)...
+        #msubcube = subcube.with_mask(velocity_range_mask &
+        #                             spatial_mask).with_mask(signal_mask)
 
         # Now write output.  Note that moment0, moment1, and moment2 directories
         # must already exist...
