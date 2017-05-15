@@ -18,12 +18,17 @@ import pyregion
 import pylab as pl
 import yaml
 import pyspeckit
+import warnings
+from astropy import wcs
+
+warnings.filterwarnings('ignore', category=wcs.FITSFixedWarning)
 
 #from astropy import log
 #log.setLevel('CRITICAL') # disable most logger messages
 
 # suppress errors when we do np.nan > 5, etc.
 np.seterr(invalid='ignore')
+
 
 
 
@@ -406,6 +411,8 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
                                                                          line_name),
                             overwrite=True)
 
+    return locals()
+
 
 def pyspeckit_fit_cube(cube, max_map, centroid_map, width_map, noisemap,
                        lines, vz):
@@ -473,6 +480,14 @@ def main():
     print(params)
 
 
+    if hasattr(params['signal_mask_limit'], 'split'):
+        params['signal_mask_limit'] = list(map(float, params['signal_mask_limit'].split(", ")))
+    if hasattr(params['spatial_mask_limit'], 'split'):
+        params['spatial_mask_limit'] = list(map(float, params['spatial_mask_limit'].split(", ")))
+    if 'width_map_scaling' in params and hasattr(params['width_map_scaling'], 'split'):
+        params['width_map_scaling'] = list(map(float, params['width_map_scaling'].split(", ")))
+    if 'width_cut_scaling' in params and hasattr(params['width_cut_scaling'], 'split'):
+        params['width_cut_scaling'] = list(map(float, params['width_cut_scaling'].split(", ")))
     params['my_line_list'] = u.Quantity(list(map(float, params['my_line_list'].split(", "))), u.GHz)
     params['my_line_widths'] = u.Quantity(list(map(float, params['my_line_widths'].split(", "))), u.km/u.s)
     params['my_line_names'] = params['my_line_names'].split(", ")
