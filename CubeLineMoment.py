@@ -36,7 +36,7 @@ def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
                          spatialmaskcuberegion, vz, target, brightest_line_frequency,
                          width_line_frequency, linewidth_guess,
                          noisemapbright_baseline, noisemap_baseline,
-                         spatial_mask_limit, **kwargs):
+                         spatial_mask_limit, mask_negatives=True, **kwargs):
     """
     For a given cube file, read it and compute the moments (0,1,2) for a
     selection of spectral lines.  This code is highly configurable.
@@ -84,6 +84,8 @@ def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
         the main cube
     spatial_mask_limit : float
         Factor in n-sigma above which to apply threshold to data.
+    mask_negatives : float or bool
+        Mask out negatives below N-sigma negative.
 
 
     Returns
@@ -111,6 +113,12 @@ def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
     # gas mask for all Band 6 lines.
     #spatialmaskcube = SpectralCube.read('NGC4945-H213COJ32K1-Feather-line.fits').with_spectral_unit(u.Hz).subcube_from_ds9region(pyregion.open('ngc4945boxband6.reg'))
 
+    if mask_negatives:
+        std = cube.std()
+        posmask = spatialmaskcube > (std * mask_negatives)
+        spatialmaskcube = spatialmaskcube.with_mask(posmask)
+
+
     # redshift velocity
     #    vz = 258.8*u.km/u.s # For NGC253
     vz = u.Quantity(vz, u.km/u.s) # For NGC253
@@ -130,39 +138,6 @@ def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
     #    width = 80*u.km/u.s
     linewidth_guess = u.Quantity(linewidth_guess, u.km/u.s)
 
-    # ADAM'S ADDITIONS HERE
-    # Use the H2CO 303_202 line (H2COJ32K02) as a mask for line widths...
-    vcube = cube.with_spectral_unit(u.km/u.s, rest_value=width_line_frequency,
-                                    velocity_convention='optical')
-    width_map = vcube.linewidth_sigma() # or vcube.moment2(axis=0)**0.5
-    fwhm_map = vcube.linewidth_fwhm() # FOR TESTING
-    sqrtmom2_map = vcube.moment2(axis=0)**0.5 # FOR TESTING
-    centroid_map = vcube.moment1(axis=0)
-    max_map = cube.max(axis=0)
-    #max_width = width_map.max() # should be ~150 km/s?
-    #max_fwhm_width = max_width * (8*np.log(2))**0.5 # convert from sigma to FWHM
-    # TESTING: Write width_map, centroid_map, max_map, and fwhm_map to FITS...
-    hdu = width_map.hdu
-    hdu.header.update(cube.beam.to_header_keywords())
-    hdu.header['OBJECT'] = cube.header['OBJECT']
-    hdu.writeto("moment0/{0}_WidthMap.fits".format(target),overwrite=True)
-    hdu = centroid_map.hdu
-    hdu.header.update(cube.beam.to_header_keywords())
-    hdu.header['OBJECT'] = cube.header['OBJECT']
-    hdu.writeto("moment0/{0}_CentroidMap.fits".format(target),overwrite=True)
-    hdu = max_map.hdu
-    hdu.header.update(cube.beam.to_header_keywords())
-    hdu.header['OBJECT'] = cube.header['OBJECT']
-    hdu.writeto("moment0/{0}_MaxMap.fits".format(target),overwrite=True)
-    hdu = fwhm_map.hdu
-    hdu.header.update(cube.beam.to_header_keywords())
-    hdu.header['OBJECT'] = cube.header['OBJECT']
-    hdu.writeto("moment0/{0}_FWHMMap.fits".format(target),overwrite=True)
-    hdu = sqrtmom2_map.hdu
-    hdu.header.update(cube.beam.to_header_keywords())
-    hdu.header['OBJECT'] = cube.header['OBJECT']
-    hdu.writeto("moment0/{0}_SQRTMOM2Map.fits".format(target),overwrite=True)
-
     # Create a copy of the SpatialMaskCube with velocity units
     spatialmask_Vcube = spatialmaskcube.with_spectral_unit(u.km/u.s,
                                                            rest_value=brightest_line_frequency,
@@ -173,20 +148,33 @@ def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
     brightest_cube = spatialmask_Vcube.spectral_slab(vz-linewidth_guess,
                                                      vz+linewidth_guess)
 
+    # compute various moments & statistics along the spcetral dimension
     peak_velocity = brightest_cube.spectral_axis[brightest_cube.argmax(axis=0)]
-    #pl.figure(2).clf()
-    #pl.imshow(peak_velocity.value)
-    #pl.colorbar()
+    max_map = peak_amplitude = brightest_cube.max(axis=0)
+    width_map = brightest_cube.linewidth_sigma() # or vcube.moment2(axis=0)**0.5
+    fwhm_map = brightest_cube.linewidth_fwhm() # FOR TESTING
+    sqrtmom2_map = brightest_cube.moment2(axis=0)**0.5 # FOR TESTING
+    centroid_map = brightest_cube.moment1(axis=0)
 
-    # make a spatial mask excluding pixels with no signal
-    # (you can do better than this - this is the trivial, first try algorithm)
-    peak_amplitude = brightest_cube.max(axis=0)
-    # found this range from inspection of a spectrum:
-    # s = cube.max(axis=(1,2))
-    # s.quicklook()
-    #noisemap = cube.spectral_slab(362.603*u.GHz, 363.283*u.GHz).std(axis=0)
-    # Channel selection matches that used for continuum subtraction
-    #
+    # NOTE: the updating header stuff will be completely redundant after
+    # https://github.com/radio-astro-tools/spectral-cube/pull/383 is merged
+    hdu = width_map.hdu
+    hdu.header['OBJECT'] = cube.header['OBJECT']
+    hdu.writeto("moment0/{0}_WidthMap.fits".format(target),overwrite=True)
+    hdu = centroid_map.hdu
+    hdu.header['OBJECT'] = cube.header['OBJECT']
+    hdu.writeto("moment0/{0}_CentroidMap.fits".format(target),overwrite=True)
+    hdu = peak_amplitude.hdu
+    hdu.header['OBJECT'] = cube.header['OBJECT']
+    hdu.writeto("moment0/{0}_MaxMap.fits".format(target),overwrite=True)
+    hdu = fwhm_map.hdu
+    hdu.header['OBJECT'] = cube.header['OBJECT']
+    hdu.writeto("moment0/{0}_FWHMMap.fits".format(target),overwrite=True)
+    hdu = sqrtmom2_map.hdu
+    hdu.header['OBJECT'] = cube.header['OBJECT']
+    hdu.writeto("moment0/{0}_SQRTMOM2Map.fits".format(target),overwrite=True)
+
+
     # From NGC253 H213COJ32K1 spectral baseline
     inds = np.arange(spatialmaskcube.shape[0])
     mask = np.zeros_like(inds, dtype='bool')
