@@ -335,7 +335,7 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
         # now we use the velocities from the brightest line to create a mask region
         # in the same velocity range but with different rest frequencies (different
         # lines)
-        mask = np.abs(peak_velocity - velocities) < line_width
+        velocity_range_mask = np.abs(peak_velocity - velocities) < line_width
 
         # Mask on a pixel-by-pixel basis with a 3-sigma cut
         signal_mask = subcube > signal_mask_limit*noisemap
@@ -347,7 +347,7 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
         #msubcube = subcube.with_mask(mask &
         #                             spatial_mask).with_mask(signal_mask).with_mask(width_mask_cube)
         # DROP width_mask masking for now (seems to be broken)...
-        msubcube = subcube.with_mask(mask &
+        msubcube = subcube.with_mask(velocity_range_mask &
                                      spatial_mask).with_mask(signal_mask)
 
         # Now write output.  Note that moment0, moment1, and moment2 directories
