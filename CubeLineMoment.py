@@ -30,6 +30,11 @@ warnings.filterwarnings('ignore', category=wcs.FITSFixedWarning)
 np.seterr(invalid='ignore')
 
 
+# debugging:
+from astropy import log
+import psutil
+proc = psutil.Process()
+
 
 
 def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
@@ -110,11 +115,12 @@ def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
     # gas mask for all Band 6 lines.
     #    spatialmaskcube = SpectralCube.read('NGC253-H213COJ32K1-Feather-line-All.fits').with_spectral_unit(u.Hz).subcube_from_ds9region(pyregion.open('ngc253boxband6tight.reg'))
     spatialmaskcube = SpectralCube.read(spatialmaskcube).with_spectral_unit(u.Hz).subcube_from_ds9region(pyregion.open(spatialmaskcuberegion))
+    noisecube = spatialmaskcube
     # For the NGC4945 Band 6 data use the C18O 2-1 line in spw1 for the dense
     # gas mask for all Band 6 lines.
     #spatialmaskcube = SpectralCube.read('NGC4945-H213COJ32K1-Feather-line.fits').with_spectral_unit(u.Hz).subcube_from_ds9region(pyregion.open('ngc4945boxband6.reg'))
 
-    if mask_negatives:
+    if mask_negatives is not False:
         std = cube.std()
         posmask = spatialmaskcube > (std * mask_negatives)
         spatialmaskcube = spatialmaskcube.with_mask(posmask)
@@ -177,13 +183,13 @@ def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
 
 
     # From NGC253 H213COJ32K1 spectral baseline
-    inds = np.arange(spatialmaskcube.shape[0])
+    inds = np.arange(noisecube.shape[0])
     mask = np.zeros_like(inds, dtype='bool')
     for low,high in noisemapbright_baseline:
         mask[low:high] = True
-    noisemapbright = spatialmaskcube.with_mask(mask[:,None,None]).std(axis=0)
-    # From NGC4945 H213COJ32K1 spectral baseline
-    #noisemapbright = spatialmaskcube[165:185,:,:].std(axis=0)
+
+    # need to use an unmasked cube
+    noisemapbright = noisecube.with_mask(mask[:,None,None]).std(axis=0)
     print("noisemapbright peak = {0}".format(np.nanmax(noisemapbright)))
 
     # Make a plot of the noise map...
@@ -355,7 +361,9 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
         pl.subplot(2,2,3).set_title("signal mask")
         pl.subplot(2,2,4).imshow(width_mask_cube.max(axis=0), origin='lower', interpolation='nearest')
         pl.subplot(2,2,4).set_title("width mask")
-        pl.savefig("DEBUG_plot_{0}_{1}.png".format(target, line_name))
+        pl.savefig("DEBUG_plot_{0}_{1}_widthscale{2:0.1f}_sncut{3:0.1f}_widthcutscale{4:0.1f}.png"
+                   .format(target, line_name, width_map_scaling,
+                           signal_mask_limit, width_cut_scaling))
 
         # Now write output.  Note that moment0, moment1, and moment2 directories
         # must already exist...
@@ -367,6 +375,8 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
                  }
 
         moments = {}
+
+        pl.close('all')
 
         for moment in (0,1,2):
             mom = msubcube.moment(order=moment, axis=0)
@@ -387,12 +397,9 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             mom.FITSFigure.close()
             moments[moment] = mom
 
-        if width_cut_scaling != 1:
-            subcube_outname = ('subcubes/{0}_{1}_width{2:0.1f}_subcube.fits'
-                               .format(target, line_name, width_cut_scaling))
-        else:
-            subcube_outname = ('subcubes/{0}_{1}_subcube.fits'
-                               .format(target, line_name))
+        subcube_outname = ('subcubes/{0}_{1}_widthscale{4:0.1f}_widthcutscale{2:0.1f}_sncut{3:0.1f}_subcube.fits'
+                           .format(target, line_name, width_cut_scaling,
+                                   signal_mask_limit, width_map_scaling))
         msubcube.write(subcube_outname, overwrite=True)
 
         # finally, optionally, do some pyspeckit fitting
@@ -417,6 +424,7 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             pcube.write_fit('pyspeckit_fits/{0}_{1}_fitcube.fits'.format(target,
                                                                          line_name),
                             overwrite=True)
+        log.debug("Open files: {0}".format(len(proc.open_files())))
 
     return locals()
 
@@ -542,8 +550,7 @@ def main():
                              **params)
 
     # Clean up open figures
-    for ii in pl.get_fignums():
-        pl.close()
+    pl.close('all')
 
     # useful reformatting of the lines to pass to the pyspeckit fitter if we
     # ever choose to use it
