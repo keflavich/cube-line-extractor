@@ -83,7 +83,8 @@ def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
         A list of pairs of indices over which the noise can be computed from
         the main cube
     spatial_mask_limit : float
-        Factor in n-sigma above which to apply threshold to data.
+        Factor in n-sigma above which to apply threshold.  Any spatial pixels
+        whose *peak intensity* is below this limit will be flagged out.
     mask_negatives : float or bool
         Mask out negatives below N-sigma negative.
 
@@ -131,7 +132,7 @@ def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
     #    brightest_line_frequency = 219.560358*u.GHz # C18O 2-1
     brightest_line_frequency = u.Quantity(brightest_line_frequency, u.GHz) # C18O 2-1
     #    width_line = 218.222192*u.GHz # H2CO 3(03)-2(02)
-    width_line_frequency = u.Quantity(width_line_frequency, u.GHz) # H2CO 3(03)-2(02)
+    # NOT USED width_line_frequency = u.Quantity(width_line_frequency, u.GHz) # H2CO 3(03)-2(02)
 
     # Assume you have a constant expected width (HWZI) for the brightest line
     # Note: This HWZI should be larger than those assumed in the line extraction loop below...
@@ -226,7 +227,7 @@ def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
 
 
 def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
-                             noisemap, signal_mask_limit, spatial_mask_limit,
+                             noisemap, signal_mask_limit,
                              my_line_list, my_line_widths, my_line_names,
                              target, spatial_mask, width_map,
                              width_map_scaling=1.0, width_cut_scaling=1.0,
@@ -248,10 +249,9 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
     my_line_names : list of strings
         A list of names matched to ``my_line_list`` and ``my_line_widths``.
         Used to specify the output filename.
-    spatial_mask_limit : float
-        Factor in n-sigma above which to apply threshold to data.
     signal_mask_limit : float
-        Factor in n-sigma above which to apply threshold to data.
+        Factor in n-sigma above which to apply threshold to data.  Unlike
+        ``spatial_mask_limit``, this threshold is applied on a per-voxel basis.
     width_map_scaling : float
         A factor by which to multiply the ``width_map`` when making the
         position-velocity mask cube.
@@ -325,7 +325,7 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
         # lines)
         velocity_range_mask = np.abs(peak_velocity - velocities) < line_width
 
-        # Mask on a pixel-by-pixel basis with a 3-sigma cut
+        # Mask on a pixel-by-pixel basis with an N-sigma cut
         signal_mask = subcube > signal_mask_limit*noisemap
 
         # the mask is a cube, the spatial mask is a 2d array, but in this case
