@@ -231,7 +231,8 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
                              my_line_list, my_line_widths, my_line_names,
                              target, spatial_mask, width_map,
                              width_map_scaling=1.0, width_cut_scaling=1.0,
-                             fit=False, **kwargs):
+                             fit=False, apply_width_mask=True,
+                             **kwargs):
     """
     Given the appropriate setup, extract moment maps for each of the specified
     lines
@@ -252,12 +253,16 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
     signal_mask_limit : float
         Factor in n-sigma above which to apply threshold to data.  Unlike
         ``spatial_mask_limit``, this threshold is applied on a per-voxel basis.
+        If this is set to ``None``, no signal masking will be applied.
     width_map_scaling : float
         A factor by which to multiply the ``width_map`` when making the
         position-velocity mask cube.
     width_cut_scaling : float
         The factor by which the cube cutout is expanded, so if this is != 1,
         the extracted subcube will be larger.
+    apply_width_mask : bool
+        Should width masking be applied at all?  Turning this off can save some
+        computational time.
 
     Returns
     -------
@@ -285,35 +290,45 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
         subcube = vcube.spectral_slab(peak_velocity.min()-line_width,
                                       peak_velocity.max()+line_width)
 
-        # ADAM'S ADDITIONS AGAIN
-        # use the spectral_axis to make a 'mask cube' with the moment1/moment2
-        # values computed for the selected mask line (H2CO 303?)
-        # We create a Gaussian along each line-of-sight, then we'll crop based on a
-        # threshold
-        # The [:,:,None] and [None,None,:] allow arrays of shape [x,y,0] and
-        # [0,0,z] to be "broadcast" together
-        assert centroid_map.unit.is_equivalent(u.km/u.s)
-        gauss_mask_cube = np.exp(-(np.array(centroid_map)[None,:,:] -
-                                   np.array(subcube.spectral_axis)[:,None,None])**2 /
-                                 (2*np.array(width_map*width_map_scaling)[None,:,:]**2))
-        peak_sn = max_map / noisemap
+        if apply_width_mask:
+            # ADAM'S ADDITIONS AGAIN
+            # use the spectral_axis to make a 'mask cube' with the moment1/moment2
+            # values computed for the selected mask line (H2CO 303?)
+            # We create a Gaussian along each line-of-sight, then we'll crop based on a
+            # threshold
+            # The [:,:,None] and [None,None,:] allow arrays of shape [x,y,0] and
+            # [0,0,z] to be "broadcast" together
+            assert centroid_map.unit.is_equivalent(u.km/u.s)
+            gauss_mask_cube = np.exp(-(np.array(centroid_map)[None,:,:] -
+                                       np.array(subcube.spectral_axis)[:,None,None])**2 /
+                                     (2*np.array(width_map*width_map_scaling)[None,:,:]**2))
+            peak_sn = max_map / noisemap
 
-        print("Peak S/N: {0}".format(np.nanmax(peak_sn)))
+            print("Peak S/N: {0}".format(np.nanmax(peak_sn)))
 
-        # threshold at the fraction of the Gaussian corresponding to our peak s/n.
-        # i.e., if the S/N=6, then the threshold will be 6-sigma
-        # (this can be modified as you see fit)
-        threshold = np.exp(-(peak_sn**2) / 2.)
-        print("Highest Threshold: {0}".format(np.nanmax(threshold)))
-        #print("Lowest Threshold: {0}".format((threshold[threshold>0].min())))
+            # threshold at the fraction of the Gaussian corresponding to our peak s/n.
+            # i.e., if the S/N=6, then the threshold will be 6-sigma
+            # (this can be modified as you see fit)
+            threshold = np.exp(-(peak_sn**2) / 2.)
+            print("Highest Threshold: {0}".format(np.nanmax(threshold)))
+            #print("Lowest Threshold: {0}".format((threshold[threshold>0].min())))
 
-        # this will compare the gaussian cube to the threshold on a (spatial)
-        # pixel-by-pixel basis
-        width_mask_cube = gauss_mask_cube > threshold
-        print("Number of values above threshold: {0}".format(width_mask_cube.sum()))
-        print("Max value in the mask cube: {0}".format(np.nanmax(gauss_mask_cube)))
-        print("shapes: mask cube={0}  threshold: {1}".format(gauss_mask_cube.shape, threshold.shape))
+            # this will compare the gaussian cube to the threshold on a (spatial)
+            # pixel-by-pixel basis
+            width_mask_cube = gauss_mask_cube > threshold
+            print("Number of values above threshold: {0}".format(width_mask_cube.sum()))
+            print("Max value in the mask cube: {0}".format(np.nanmax(gauss_mask_cube)))
+            print("shapes: mask cube={0}  threshold: {1}".format(gauss_mask_cube.shape, threshold.shape))
 
+            msubcube = subcube.with_mask(width_mask_cube)
+        else:
+            msubcube = subcube
+
+
+        # Mask on a pixel-by-pixel basis with an N-sigma cut
+        if signal_mask_limit is not None:
+            signal_mask = subcube > signal_mask_limit*noisemap
+            msubcube = msubcube.with_mask(signal_mask)
 
 
         # this part makes a cube of velocities
@@ -324,16 +339,11 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
         # in the same velocity range but with different rest frequencies (different
         # lines)
         velocity_range_mask = np.abs(peak_velocity - velocities) < line_width
-
-        # Mask on a pixel-by-pixel basis with an N-sigma cut
-        signal_mask = subcube > signal_mask_limit*noisemap
-
         # the mask is a cube, the spatial mask is a 2d array, but in this case
         # numpy knows how to combine them properly
         # (signal_mask is a different type, so it can't be combined with the others
         # yet - I'll add a feature request for that)
-        msubcube = subcube.with_mask(velocity_range_mask &
-                                     spatial_mask).with_mask(signal_mask).with_mask(width_mask_cube)
+        msubcube = msubcube.with_mask(velocity_range_mask & spatial_mask)
 
         # DEBUG: show the values from all the masks
         pl.figure(10).clf()
@@ -346,10 +356,6 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
         pl.subplot(2,2,4).imshow(width_mask_cube.max(axis=0), origin='lower', interpolation='nearest')
         pl.subplot(2,2,4).set_title("width mask")
         pl.savefig("DEBUG_plot_{0}_{1}.png".format(target, line_name))
-
-        ## DROP width_mask masking for now (seems to be broken)...
-        #msubcube = subcube.with_mask(velocity_range_mask &
-        #                             spatial_mask).with_mask(signal_mask)
 
         # Now write output.  Note that moment0, moment1, and moment2 directories
         # must already exist...
@@ -387,7 +393,7 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
         else:
             subcube_outname = ('subcubes/{0}_{1}_subcube.fits'
                                .format(target, line_name))
-        subcube.write(subcube_outname, overwrite=True)
+        msubcube.write(subcube_outname, overwrite=True)
 
         # finally, optionally, do some pyspeckit fitting
         if fit:
@@ -483,6 +489,8 @@ def main():
 
     if hasattr(params['signal_mask_limit'], 'split'):
         params['signal_mask_limit'] = list(map(float, params['signal_mask_limit'].split(", ")))
+    elif params['signal_mask_limit'] == 'None':
+        params['signal_mask_limit'] = None
     if hasattr(params['spatial_mask_limit'], 'split'):
         params['spatial_mask_limit'] = list(map(float, params['spatial_mask_limit'].split(", ")))
     if 'width_map_scaling' in params and hasattr(params['width_map_scaling'], 'split'):
