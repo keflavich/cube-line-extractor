@@ -203,7 +203,7 @@ def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
     #
     # Use 3*noisemap for spatial masking
     if spatial_mask_limit is None:
-        spatial_mask = np.ones_like(noisemapbright, dtype='bool')
+        spatial_mask = np.ones(noisemapbright.shape, dtype='bool')
     else:
         spatial_mask = np.fabs(peak_amplitude) > spatial_mask_limit*noisemapbright
     #hdu = spatial_mask.hdu
@@ -360,7 +360,8 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
         pl.subplot(2,2,1).set_title("velocity range mask")
         pl.subplot(2,2,2).imshow(spatial_mask, origin='lower', interpolation='nearest')
         pl.subplot(2,2,2).set_title("spatial mask")
-        pl.subplot(2,2,3).imshow(signal_mask.include().max(axis=0), origin='lower', interpolation='nearest')
+        if signal_mask_limit is not None:
+            pl.subplot(2,2,3).imshow(signal_mask.include().max(axis=0), origin='lower', interpolation='nearest')
         pl.subplot(2,2,3).set_title("signal mask")
         pl.subplot(2,2,4).imshow(width_mask_cube.max(axis=0), origin='lower', interpolation='nearest')
         pl.subplot(2,2,4).set_title("width mask")
