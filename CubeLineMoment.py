@@ -39,7 +39,7 @@ proc = psutil.Process()
 
 def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
                          spatialmaskcuberegion, vz, target, brightest_line_frequency,
-                         width_line_frequency, full_line_width_guess,
+                         width_line_frequency, velocity_half_range,
                          noisemapbright_baseline, noisemap_baseline,
                          spatial_mask_limit, mask_negatives=True, **kwargs):
     """
@@ -73,7 +73,7 @@ def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
         over which to compute moments for other lines
     width_line_frequency : `astropy.units.Quantity` with Hz equivalence
         The central frequency of the line used to compute the width (moment 2)
-    full_line_width_guess : `astropy.units.Quantity` with km/s equivalence
+    velocity_half_range : `astropy.units.Quantity` with km/s equivalence
         The approximate half-width zero-intensity of the lines.  This parameter
         is used to crop out regions of the cubes around line centers.  It
         should be larger than the expected FWHM line width.
@@ -143,7 +143,7 @@ def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
     # Assume you have a constant expected width (HWZI) for the brightest line
     # Note: This HWZI should be larger than those assumed in the line extraction loop below...
     #    width = 80*u.km/u.s
-    full_line_width_guess = u.Quantity(full_line_width_guess, u.km/u.s)
+    velocity_half_range = u.Quantity(velocity_half_range, u.km/u.s)
 
     # Create a copy of the SpatialMaskCube with velocity units
     spatialmask_Vcube = spatialmaskcube.with_spectral_unit(u.km/u.s,
@@ -152,8 +152,8 @@ def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
 
     # Use the brightest line to identify the appropriate peak velocities, but ONLY
     # from a slab including +/- width:
-    brightest_cube = spatialmask_Vcube.spectral_slab(vz-full_line_width_guess,
-                                                     vz+full_line_width_guess)
+    brightest_cube = spatialmask_Vcube.spectral_slab(vz-velocity_half_range,
+                                                     vz+velocity_half_range)
 
     # compute various moments & statistics along the spcetral dimension
     peak_velocity = brightest_cube.spectral_axis[brightest_cube.argmax(axis=0)]
