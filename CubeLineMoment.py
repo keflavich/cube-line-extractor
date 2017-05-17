@@ -202,7 +202,10 @@ def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
     hdu.writeto("moment0/{0}_NoiseMapBright.fits".format(target),overwrite=True)
     #
     # Use 3*noisemap for spatial masking
-    spatial_mask = np.fabs(peak_amplitude) > spatial_mask_limit*noisemapbright
+    if spatial_mask_limit is None:
+        spatial_mask = np.ones_like(noisemapbright, dtype='bool')
+    else:
+        spatial_mask = np.fabs(peak_amplitude) > spatial_mask_limit*noisemapbright
     #hdu = spatial_mask.hdu
     #hdu.header.update(spatialmaskcube.beam.to_header_keywords())
     #hdu.header['OBJECT'] = spatialmaskcube.header['OBJECT']
