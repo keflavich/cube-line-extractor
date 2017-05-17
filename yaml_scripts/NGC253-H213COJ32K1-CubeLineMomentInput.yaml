@@ -6,7 +6,7 @@ vz: 258.8
 target: NGC253-H213COJ32K1
 brightest_line_frequency: 219.560358
 width_line_frequency: 219.908486
-linewidth_guess: 80
+full_line_width_guess: 80
 noisemapbright_baseline: [[150,180]]
 noisemap_baseline: [[150,180]]
 my_line_list: 220.747259, 220.398684, 219.908486, 219.798274, 219.735000, 219.675114, 219.560358
