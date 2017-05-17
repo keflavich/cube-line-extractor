@@ -495,11 +495,13 @@ def main():
     print(params)
 
 
-    if hasattr(params['signal_mask_limit'], 'split'):
-        params['signal_mask_limit'] = list(map(float, params['signal_mask_limit'].split(", ")))
-    elif params['signal_mask_limit'] == 'None':
+    if params['signal_mask_limit'] == 'None':
         params['signal_mask_limit'] = None
-    if hasattr(params['spatial_mask_limit'], 'split'):
+    elif hasattr(params['signal_mask_limit'], 'split'):
+        params['signal_mask_limit'] = list(map(float, params['signal_mask_limit'].split(", ")))
+    if params['spatial_mask_limit'] == 'None':
+        params['spatial_mask_limit'] = None
+    elif hasattr(params['spatial_mask_limit'], 'split'):
         params['spatial_mask_limit'] = list(map(float, params['spatial_mask_limit'].split(", ")))
     if 'width_map_scaling' in params and hasattr(params['width_map_scaling'], 'split'):
         params['width_map_scaling'] = list(map(float, params['width_map_scaling'].split(", ")))
