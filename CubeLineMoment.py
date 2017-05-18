@@ -367,7 +367,7 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
         pl.subplot(2,2,4).set_title("width mask")
         pl.savefig("DEBUG_plot_{0}_{1}_widthscale{2:0.1f}_sncut{3:0.1f}_widthcutscale{4:0.1f}.png"
                    .format(target, line_name, width_map_scaling,
-                           signal_mask_limit, width_cut_scaling))
+                           signal_mask_limit or 999, width_cut_scaling))
 
         # Now write output.  Note that moment0, moment1, and moment2 directories
         # must already exist...
@@ -391,19 +391,19 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             hdu.header['OBJECT'] = cube.header['OBJECT']
             hdu.writeto("moment{0}/{1}_{2}_moment{0}_widthscale{3:0.1f}_sncut{4:0.1f}_widthcutscale{5:0.1f}.fits"
                         .format(moment, target, line_name, width_map_scaling,
-                                signal_mask_limit, width_cut_scaling), overwrite=True)
+                                signal_mask_limit or 999, width_cut_scaling), overwrite=True)
             pl.figure(1).clf()
             mom.quicklook() #filename='moment{0}/{1}_{2}_moment{0}.png'.format(moment,target,line_name))
             mom.FITSFigure.colorbar.show(axis_label_text=labels[moment].format(mom.unit.to_string('latex_inline')))
             mom.FITSFigure.save(filename='moment{0}/{1}_{2}_moment{0}_widthscale{3:0.1f}_sncut{4:0.1f}_widthcutscale{5:0.1f}.png'
                                 .format(moment, target, line_name,
-                                        width_map_scaling, signal_mask_limit, width_cut_scaling))
+                                        width_map_scaling, signal_mask_limit or 999, width_cut_scaling))
             mom.FITSFigure.close()
             moments[moment] = mom
 
         subcube_outname = ('subcubes/{0}_{1}_widthscale{4:0.1f}_widthcutscale{2:0.1f}_sncut{3:0.1f}_subcube.fits'
                            .format(target, line_name, width_cut_scaling,
-                                   signal_mask_limit, width_map_scaling))
+                                   signal_mask_limit or 999, width_map_scaling))
         msubcube.write(subcube_outname, overwrite=True)
 
         # finally, optionally, do some pyspeckit fitting
