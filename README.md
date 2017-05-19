@@ -28,7 +28,9 @@ YAML File Input Parameters:
    mask input FITS spatialmaskcube.
    Example: regions/NGC253BoxBand6H2COJ32K02.reg
 
--- vz [float:km/s]: Target central velocity.
+-- vz [float:km/s]: Target central velocity.  In order to maximize the
+   effectiveness of the spectral lines extracted from your image cube,
+   set vz to a value near the median radial velocity of your target.
    Example: 258.8
 
 -- target [string]: Target name.
@@ -42,16 +44,18 @@ YAML File Input Parameters:
    transition in cube.
    Example: 218.222192
 
--- linewidth_guess [float:km/s]: Estimated half-width at zero
-   intensity for the "representative" transition in cube.
+-- velocity_half_range [float:km/s]: Estimated half-width at zero
+   intensity for the entire velocity extent of the "representative"
+   transition in cube.  Note that for a galaxy this would be half of
+   the total velocity range for the chosen transition.
    Example: 80
 
--- noisemapbright_baseline [list:channels]: Baseline channel segments
+-- noisemapbright_baseline [list of lists:channels]: Baseline channel segments
    which are considered line-free in spatialmaskcube.  Used to
    determine RMS spectral noise in spatialmaskcube.
    Example: [[40,60],[100,116],[150,180]]
    
--- noisemap_baseline [list:channels]: Baseline channel segments
+-- noisemap_baseline [list of lists:channels]: Baseline channel segments
    which are considered line-free in cube.  Used to determine RMS
    spectral noise in cube.
    Example: [[20,35],[60,95],[360,370]]
