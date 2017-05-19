@@ -6,11 +6,11 @@ vz: 538.2
 target: NGC4945-H2COJ54K1
 brightest_line_frequency: 362.630304
 width_line_frequency: 351.768645
-linewidth_guess: 80
-noisemapbright_baseline: [[102,110],[155,162]] <== NEEDS WORK
+velocity_half_range: 150
+noisemapbright_baseline: [[155,162]]
 noisemap_baseline: [[171,174]]
 my_line_list: 352.50644100, 352.199050, 351.984515, 351.92140300, 352.603542, 351.768645, 351.6334, 351.45424, 351.236343, 351.051705, 351.04888, 351.043524, 351.047000, 351.03919, 350.905070
 my_line_widths: 50.0, 50.0, 50.0, 50.0, 50.0, 80.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0
 my_line_names: CH3OCHO451413E1, CH3OCHO451413E2, CH3OCHO3231E, CH3OH1111, CH3OCHO3029A, H2COJ54K1, HNCO1615K0, CH2NH1010, CH3OH910E, NOF75, CH3COOH2322, NOF97, UNIDENTIFIED, CH3COOH2322, CH3OH10A
-signal_mask_limit: 2
-spatial_mask_limit: 2
+signal_mask_limit: None
+spatial_mask_limit: None
