@@ -363,7 +363,8 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
         if signal_mask_limit is not None:
             pl.subplot(2,2,3).imshow(signal_mask.include().max(axis=0), origin='lower', interpolation='nearest')
         pl.subplot(2,2,3).set_title("signal mask")
-        pl.subplot(2,2,4).imshow(width_mask_cube.max(axis=0), origin='lower', interpolation='nearest')
+        if apply_width_mask:
+            pl.subplot(2,2,4).imshow(width_mask_cube.max(axis=0), origin='lower', interpolation='nearest')
         pl.subplot(2,2,4).set_title("width mask")
         pl.savefig("DEBUG_plot_{0}_{1}_widthscale{2:0.1f}_sncut{3:0.1f}_widthcutscale{4:0.1f}.png"
                    .format(target, line_name, width_map_scaling,
