@@ -12,5 +12,5 @@ noisemap_baseline: [[15,20]]
 my_line_list: 363.945894, 364.103249, 364.275141, 364.288914, 364.748959, 365.184572, 365.363428, 365.388439
 my_line_widths: 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0
 my_line_names: H2COJ54K243, H2COJ54K4, H2COJ54K332, H2COJ54K321, OCS3029, CH3OCHO3433, H2COJ54K232, CH3OCHO4949
-signal_mask_limit: None
-spatial_mask_limit: None
+signal_mask_limit: 2
+spatial_mask_limit: 2
