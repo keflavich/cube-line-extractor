@@ -19,6 +19,7 @@ import pylab as pl
 import yaml
 import pyspeckit
 import warnings
+import ast
 from astropy import wcs
 
 warnings.filterwarnings('ignore', category=wcs.FITSFixedWarning)
@@ -41,7 +42,8 @@ def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
                          spatialmaskcuberegion, vz, target, brightest_line_frequency,
                          width_line_frequency, velocity_half_range,
                          noisemapbright_baseline, noisemap_baseline,
-                         spatial_mask_limit, mask_negatives=True, **kwargs):
+                         spatial_mask_limit, mask_negatives=True,
+                         sample_pixel=None, **kwargs):
     """
     For a given cube file, read it and compute the moments (0,1,2) for a
     selection of spectral lines.  This code is highly configurable.
@@ -229,6 +231,40 @@ def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
     hdu.header.update(cube.beam.to_header_keywords())
     hdu.header['OBJECT'] = cube.header['OBJECT']
     hdu.writeto("moment0/{0}_NoiseMap.fits".format(target),overwrite=True)
+
+    if sample_pixel is not None:
+        # Create a plot showing all the analysis steps applied to the sample
+        # pixel
+        fig = pl.figure(11)
+        fig.clf()
+        #ax = fig.gca() # subplot?
+        #raw_spec = cube[:, sample_pixel[0], sample_pixel[1]]
+        #ax.plot(raw_spec.spectral_axis, raw_spec.value, drawstyle='steps-mid',
+        #        color='k', label='Raw')
+        ax = fig.add_subplot(3,1,1)
+        spatialmaskplot = spatialmaskcube[:, sample_pixel[0], sample_pixel[1]]
+        ax.plot(spatialmaskplot.spectral_axis, spatialmaskplot.value,
+                drawstyle='steps-mid', color='k', label='SpatialMask')
+        ax.set_title('SpatialMask')
+
+        ax2 = fig.add_subplot(3,1,2)
+        noisespec = noisecube[:, sample_pixel[0], sample_pixel[1]]
+        ax2.plot(noisespec.spectral_axis, noisespec.value,
+                 drawstyle='steps-mid', color='b', label='Noise')
+        ax2.set_title('Noise')
+
+        ax3 = fig.add_subplot(3,1,3)
+        brightestspec = brightest_cube[:, sample_pixel[0], sample_pixel[1]]
+        ax3.plot(brightestspec.spectral_axis, brightestspec.value,
+                 drawstyle='steps-mid', color='r', label='Brightest')
+        ax3.set_title('Brightest')
+
+        ax2.plot(brightest_cube.with_spectral_unit(spatialmaskcube.spectral_axis.unit).spectral_axis.value,
+                 brightestspec.value,
+                 drawstyle='steps-mid', color='r', label='Brightest',
+                 zorder=-1, linewidth=2)
+
+        fig.savefig('diagnostics/{0}_brightest_diagnostic.png'.format(target))
     
     return (cube, spatialmaskcube, spatial_mask, noisemap, noisemapbright,
             centroid_map, width_map, max_map, peak_velocity)
@@ -241,6 +277,7 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
                              target, spatial_mask, width_map,
                              width_map_scaling=1.0, width_cut_scaling=1.0,
                              fit=False, apply_width_mask=True,
+                             sample_pixel=None,
                              **kwargs):
     """
     Given the appropriate setup, extract moment maps for each of the specified
@@ -369,6 +406,44 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
         pl.savefig("DEBUG_plot_{0}_{1}_widthscale{2:0.1f}_sncut{3:0.1f}_widthcutscale{4:0.1f}.png"
                    .format(target, line_name, width_map_scaling,
                            signal_mask_limit or 999, width_cut_scaling))
+
+        if sample_pixel is not None:
+            # Create a plot showing all the analysis steps applied to the sample
+            # pixel
+            fig = pl.figure(11)
+            fig.clf()
+            #ax = fig.gca() # subplot?
+            #raw_spec = cube[:, sample_pixel[0], sample_pixel[1]]
+            #ax.plot(raw_spec.spectral_axis, raw_spec.value, drawstyle='steps-mid',
+            #        color='k', label='Raw')
+            ax = fig.add_subplot(2,1,1)
+            subcubesp = subcube[:, sample_pixel[0], sample_pixel[1]]
+            ax.plot(subcubesp.spectral_axis, subcubesp.value,
+                    drawstyle='steps-mid', color='k', label='subcube')
+            ax.set_title('subcube')
+
+            ax = fig.add_subplot(2,1,2)
+            maskedsubcubesp = msubcube[:, sample_pixel[0], sample_pixel[1]]
+            ax.plot(maskedsubcubesp.spectral_axis, maskedsubcubesp.value,
+                    drawstyle='steps-mid', color='b', label='Masked subcube')
+            ax.set_title('masked subcube')
+
+            if 'width_mask_cube' in locals():
+                ax.plot(maskedsubcubesp.spectral_axis,
+                        maskedsubcubesp.value*width_mask_cube[:, sample_pixel[0], sample_pixel[1]],
+                        drawstyle='steps-mid', color='r', label='Width Mask',
+                        alpha=0.5, zorder=-10, linewidth=3)
+            if 'signal_mask' in locals():
+                ax.plot(maskedsubcubesp.spectral_axis,
+                        maskedsubcubesp.value*signal_mask[:, sample_pixel[0], sample_pixel[1]].include(),
+                        drawstyle='steps-mid', color='g', label='Signal Mask',
+                        alpha=0.5, zorder=-10, linewidth=3)
+
+            pl.legend(loc='best')
+
+            fig.savefig("diagnostics/{0}_{1}_widthscale{2:0.1f}_sncut{3:0.1f}_widthcutscale{4:0.1f}_spectraldiagnostics.png"
+                        .format(target, line_name, width_map_scaling,
+                                signal_mask_limit or 999, width_cut_scaling))
 
         # Now write output.  Note that moment0, moment1, and moment2 directories
         # must already exist...
@@ -515,6 +590,8 @@ def main():
     params['my_line_list'] = u.Quantity(list(map(float, params['my_line_list'].split(", "))), u.GHz)
     params['my_line_widths'] = u.Quantity(list(map(float, params['my_line_widths'].split(", "))), u.km/u.s)
     params['my_line_names'] = params['my_line_names'].split(", ")
+    if 'sample_pixel' in params:
+        params['sample_pixel'] = ast.literal_eval(params['sample_pixel'])
 
     # Read parameters from dictionary
 
