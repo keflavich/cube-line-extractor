@@ -358,6 +358,14 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             threshold = np.exp(-(peak_sn**2) / 2.)
             print("Highest Threshold: {0}".format(np.nanmax(threshold)))
             #print("Lowest Threshold: {0}".format((threshold[threshold>0].min())))
+            if sample_pixel:
+                print("SP Threshold: {0}".format(threshold[sample_pixel]))
+                print("SP S, N, S/N: {0},{1},{2}"
+                      .format(max_map[sample_pixel],
+                              noisemap[sample_pixel],
+                              peak_sn[sample_pixel],
+                             ))
+
 
             # this will compare the gaussian cube to the threshold on a (spatial)
             # pixel-by-pixel basis
@@ -416,11 +424,11 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             #raw_spec = cube[:, sample_pixel[0], sample_pixel[1]]
             #ax.plot(raw_spec.spectral_axis, raw_spec.value, drawstyle='steps-mid',
             #        color='k', label='Raw')
-            ax = fig.add_subplot(2,1,1)
+            ax1 = fig.add_subplot(2,1,1)
             subcubesp = subcube[:, sample_pixel[0], sample_pixel[1]]
-            ax.plot(subcubesp.spectral_axis, subcubesp.value,
+            ax1.plot(subcubesp.spectral_axis, subcubesp.value,
                     drawstyle='steps-mid', color='k', label='subcube')
-            ax.set_title('subcube')
+            ax1.set_title('subcube')
 
             ax = fig.add_subplot(2,1,2)
             maskedsubcubesp = msubcube[:, sample_pixel[0], sample_pixel[1]]
@@ -428,11 +436,16 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
                     drawstyle='steps-mid', color='b', label='Masked subcube')
             ax.set_title('masked subcube')
 
-            if 'width_mask_cube' in locals():
+            if apply_width_mask and 'width_mask_cube' in locals():
                 ax.plot(maskedsubcubesp.spectral_axis,
                         maskedsubcubesp.value*width_mask_cube[:, sample_pixel[0], sample_pixel[1]],
                         drawstyle='steps-mid', color='r', label='Width Mask',
                         alpha=0.5, zorder=-10, linewidth=3)
+                ax.plot(maskedsubcubesp.spectral_axis,
+                        gauss_mask_cube[:, sample_pixel[0], sample_pixel[1]] * maskedsubcubesp.value.max(),
+                        color='r', zorder=-20, linewidth=1,
+                        label='Gaussian',
+                       )
             if 'signal_mask' in locals():
                 ax.plot(maskedsubcubesp.spectral_axis,
                         maskedsubcubesp.value*signal_mask[:, sample_pixel[0], sample_pixel[1]].include(),
