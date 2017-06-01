@@ -7,10 +7,10 @@ target: NGC253-H213COJ32K1
 brightest_line_frequency: 219.560358
 width_line_frequency: 219.908486
 velocity_half_range: 150
-noisemapbright_baseline: [[177,218],[232,242]]
-noisemap_baseline: [[45,83],[313,327]]
+noisemapbright_baseline: [[150,180]]
+noisemap_baseline: [[150,180]]
 my_line_list: 220.747259, 220.398684, 219.908486, 219.798274, 219.735000, 219.675114, 219.560358
-my_line_widths: 40.0, 100.0, 50.0, 40.0, 40.0, 50.0, 80.0
+my_line_widths: 40.0, 115.0, 80.0, 75.0, 50.0, 50.0, 115.0
 my_line_names: CH3CN1211, 13CO21, H213COJ32K1, HNCOJ109K0, HNCOJ109K2, HC3N2423v72, C18O21
 signal_mask_limit: 2
 spatial_mask_limit: 2
