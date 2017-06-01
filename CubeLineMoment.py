@@ -355,7 +355,8 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             # threshold at the fraction of the Gaussian corresponding to our peak s/n.
             # i.e., if the S/N=6, then the threshold will be 6-sigma
             # (this can be modified as you see fit)
-            threshold = np.exp(-(peak_sn**2) / 2.)
+            threshold = 1 / peak_sn
+                                
             print("Highest Threshold: {0}".format(np.nanmax(threshold)))
             #print("Lowest Threshold: {0}".format((threshold[threshold>0].min())))
             if sample_pixel:
