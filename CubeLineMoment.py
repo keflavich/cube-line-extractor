@@ -328,6 +328,8 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
 
     for line_name,line_freq,line_width in zip(my_line_names,my_line_list,my_line_widths):
 
+        log.info("Line: {0}, {1}, {2}".format(line_name, line_freq, line_width))
+
         line_freq = u.Quantity(line_freq,u.GHz)
         line_width = u.Quantity(line_width,u.km/u.s) * width_cut_scaling
         vcube = cube.with_spectral_unit(u.km/u.s, rest_value=line_freq,
@@ -428,7 +430,7 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             ax1 = fig.add_subplot(2,1,1)
             subcubesp = subcube[:, sample_pixel[0], sample_pixel[1]]
             ax1.plot(subcubesp.spectral_axis, subcubesp.value,
-                    drawstyle='steps-mid', color='k', label='subcube')
+                     drawstyle='steps-mid', color='k', label='subcube')
             ax1.set_title('subcube')
 
             ax = fig.add_subplot(2,1,2)
@@ -473,9 +475,10 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
         pl.close('all')
 
         for moment in (0,1,2):
-            mom = msubcube.moment(order=moment, axis=0)
             if moment == 2:
-                mom = np.multiply(2*np.sqrt(np.log(2)),np.sqrt(mom))
+                mom = msubcube.linewidth_fwhm()
+            else:
+                mom = msubcube.moment(order=moment, axis=0)
             hdu = mom.hdu
             hdu.header.update(cube.beam.to_header_keywords())
             hdu.header['OBJECT'] = cube.header['OBJECT']
@@ -490,6 +493,10 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
                                         width_map_scaling, signal_mask_limit or 999, width_cut_scaling))
             mom.FITSFigure.close()
             moments[moment] = mom
+
+            if sample_pixel is not None:
+                print("Moment {0} for sample pixel is {1}"
+                      .format(moment, mom[sample_pixel]))
 
         subcube_outname = ('subcubes/{0}_{1}_widthscale{4:0.1f}_widthcutscale{2:0.1f}_sncut{3:0.1f}_subcube.fits'
                            .format(target, line_name, width_cut_scaling,
