@@ -1,16 +1,16 @@
 cube: FITS/NGC253-H2COJ54K23-Feather-line.fits
 cuberegion: regions/NGC253BoxBand7.reg
-spatialmaskcube: FITS/NGC253-H2COJ54K024-Feather-line.fits
+spatialmaskcube: FITS/NGC253-H2COJ54K1-Feather-line.fits
 spatialmaskcuberegion: regions/NGC253BoxBand7.reg
 vz: 258.8
 target: NGC253-H2COJ54K23
-brightest_line_frequency: 362.630304
+brightest_line_frequency: 351.768645
 width_line_frequency: 364.275141
 velocity_half_range: 150
-noisemapbright_baseline: [[177,218],[232,242]]
+noisemapbright_baseline: [[45,83],[313,327]]
 noisemap_baseline: [[1,10],[258,263],[278,292]]
 my_line_list: 363.945894, 364.103249, 364.275141, 364.288914, 364.748959, 365.184572, 365.363428, 365.388439
-my_line_widths: 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0
+my_line_widths: 60.0, 60.0, 60.0, 60.0, 80.0, 60.0, 60.0, 60.0
 my_line_names: H2COJ54K243, H2COJ54K4, H2COJ54K332, H2COJ54K321, OCS3029, CH3OCHO3433, H2COJ54K232, CH3OCHO4949
-signal_mask_limit: None
-spatial_mask_limit: None
+signal_mask_limit: 2
+spatial_mask_limit: 2
