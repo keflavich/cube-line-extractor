@@ -436,7 +436,8 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             ax = fig.add_subplot(2,1,2)
             maskedsubcubesp = msubcube[:, sample_pixel[0], sample_pixel[1]]
             ax.plot(maskedsubcubesp.spectral_axis, maskedsubcubesp.value,
-                    drawstyle='steps-mid', color='b', label='Masked subcube')
+                    linewidth=0.5, zorder=20,
+                    drawstyle='steps-mid', color='k', label='Masked subcube')
             ax.set_title('masked subcube')
 
             ax.plot(velocities[:, sample_pixel[0], sample_pixel[1]],
@@ -453,7 +454,7 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             if apply_width_mask and 'width_mask_cube' in locals():
                 ax.plot(maskedsubcubesp.spectral_axis,
                         maskedsubcubesp.value*width_mask_cube[:, sample_pixel[0], sample_pixel[1]],
-                        drawstyle='steps-mid', color='r', label='Width Mask',
+                        drawstyle='steps-mid', color='b', label='Width Mask',
                         alpha=0.5, zorder=-10, linewidth=3)
                 ax.plot(maskedsubcubesp.spectral_axis,
                         gauss_mask_cube[:, sample_pixel[0], sample_pixel[1]] * maskedsubcubesp.value.max(),
