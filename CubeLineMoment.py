@@ -445,8 +445,9 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
                     zorder=-30,
                     label='subcube')
             ax.plot(maskedsubcubesp.spectral_axis, nansp.value,
-                    linewidth=0.5, zorder=20,
-                    drawstyle='steps-mid', color='w', label='Masked subcube')
+                    linewidth=7, zorder=-50,
+                    drawstyle='steps-mid', color='k', alpha=0.3,
+                    label='Masked subcube')
             ax.set_title('masked subcube')
 
             ax.plot(velocities[:, sample_pixel[0], sample_pixel[1]],
