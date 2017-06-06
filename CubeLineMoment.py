@@ -434,14 +434,23 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             ax1.set_title('subcube')
 
             ax = fig.add_subplot(2,1,2)
+            mask_ = msubcube.mask.include()[:, sample_pixel[0], sample_pixel[1]]
             maskedsubcubesp = msubcube[:, sample_pixel[0], sample_pixel[1]]
-            ax.plot(maskedsubcubesp.spectral_axis, maskedsubcubesp.value,
+            assert np.all(np.isfinite(maskedsubcubesp[mask_]))
+            assert np.all(~np.isfinite(maskedsubcubesp[~mask_]))
+            nansp = maskedsubcubesp.filled_data[:]
+            zerosp = np.nan_to_num(nansp)
+            ax.plot(subcubesp.spectral_axis, subcubesp.value,
+                    drawstyle='steps-mid', linestyle=":", color='k',
+                    zorder=-30,
+                    label='subcube')
+            ax.plot(maskedsubcubesp.spectral_axis, nansp.value,
                     linewidth=0.5, zorder=20,
-                    drawstyle='steps-mid', color='k', label='Masked subcube')
+                    drawstyle='steps-mid', color='w', label='Masked subcube')
             ax.set_title('masked subcube')
 
             ax.plot(velocities[:, sample_pixel[0], sample_pixel[1]],
-                    maskedsubcubesp.value*velocity_range_mask[:, sample_pixel[0], sample_pixel[1]],
+                    subcubesp.value*velocity_range_mask[:, sample_pixel[0], sample_pixel[1]],
                     color='orange',
                     linewidth=3,
                     zorder=-15,
@@ -453,25 +462,27 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
 
             if apply_width_mask and 'width_mask_cube' in locals():
                 ax.plot(maskedsubcubesp.spectral_axis,
-                        maskedsubcubesp.value*width_mask_cube[:, sample_pixel[0], sample_pixel[1]],
+                        subcubesp.value*width_mask_cube[:, sample_pixel[0], sample_pixel[1]],
                         drawstyle='steps-mid', color='b', label='Width Mask',
                         alpha=0.5, zorder=-10, linewidth=3)
                 ax.plot(maskedsubcubesp.spectral_axis,
-                        gauss_mask_cube[:, sample_pixel[0], sample_pixel[1]] * maskedsubcubesp.value.max(),
+                        gauss_mask_cube[:, sample_pixel[0], sample_pixel[1]] * subcubesp.value.max(),
                         color='r', zorder=-20, linewidth=1,
                         label='Gaussian',
                        )
             if 'signal_mask' in locals():
                 ax.plot(maskedsubcubesp.spectral_axis,
-                        maskedsubcubesp.value*signal_mask[:, sample_pixel[0], sample_pixel[1]].include(),
+                        subcubesp.value*signal_mask[:, sample_pixel[0], sample_pixel[1]].include(),
                         drawstyle='steps-mid', color='g', label='Signal Mask',
                         alpha=0.5, zorder=-10, linewidth=3)
 
-            pl.legend(loc='best')
+            pl.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+            
 
             fig.savefig("diagnostics/{0}_{1}_widthscale{2:0.1f}_sncut{3:0.1f}_widthcutscale{4:0.1f}_spectraldiagnostics.png"
                         .format(target, line_name, width_map_scaling,
-                                signal_mask_limit or 999, width_cut_scaling))
+                                signal_mask_limit or 999, width_cut_scaling),
+                        bbox_inches='tight')
 
         # Now write output.  Note that moment0, moment1, and moment2 directories
         # must already exist...
@@ -639,32 +650,32 @@ def main():
                              noisemap=noisemap, width_map=width_map, fit=False,
                              **params)
 
-    params.pop('signal_mask_limit')
-    cubelinemoment_multiline(cube=cube, spatial_mask=spatial_mask,
-                             peak_velocity=peak_velocity,
-                             centroid_map=centroid_map, max_map=max_map,
-                             noisemap=noisemap, width_map=width_map,
-                             width_map_scaling=2.0, fit=False,
-                             signal_mask_limit=2.0,
-                             **params)
+    # params.pop('signal_mask_limit')
+    # cubelinemoment_multiline(cube=cube, spatial_mask=spatial_mask,
+    #                          peak_velocity=peak_velocity,
+    #                          centroid_map=centroid_map, max_map=max_map,
+    #                          noisemap=noisemap, width_map=width_map,
+    #                          width_map_scaling=2.0, fit=False,
+    #                          signal_mask_limit=2.0,
+    #                          **params)
 
-    cubelinemoment_multiline(cube=cube, spatial_mask=spatial_mask,
-                             peak_velocity=peak_velocity,
-                             centroid_map=centroid_map, max_map=max_map,
-                             noisemap=noisemap, width_map=width_map,
-                             width_map_scaling=2.0, fit=False,
-                             width_cut_scaling=1.5,
-                             signal_mask_limit=2.0,
-                             **params)
+    # cubelinemoment_multiline(cube=cube, spatial_mask=spatial_mask,
+    #                          peak_velocity=peak_velocity,
+    #                          centroid_map=centroid_map, max_map=max_map,
+    #                          noisemap=noisemap, width_map=width_map,
+    #                          width_map_scaling=2.0, fit=False,
+    #                          width_cut_scaling=1.5,
+    #                          signal_mask_limit=2.0,
+    #                          **params)
 
-    cubelinemoment_multiline(cube=cube, spatial_mask=spatial_mask,
-                             peak_velocity=peak_velocity,
-                             centroid_map=centroid_map, max_map=max_map,
-                             noisemap=noisemap, width_map=width_map,
-                             width_map_scaling=1.0, fit=False,
-                             width_cut_scaling=1.0,
-                             signal_mask_limit=2.0,
-                             **params)
+    # cubelinemoment_multiline(cube=cube, spatial_mask=spatial_mask,
+    #                          peak_velocity=peak_velocity,
+    #                          centroid_map=centroid_map, max_map=max_map,
+    #                          noisemap=noisemap, width_map=width_map,
+    #                          width_map_scaling=1.0, fit=False,
+    #                          width_cut_scaling=1.0,
+    #                          signal_mask_limit=2.0,
+    #                          **params)
 
     # Clean up open figures
     pl.close('all')
