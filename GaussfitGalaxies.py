@@ -20,7 +20,8 @@ def data_to_table(fit_data):
     colnames = ['amplitude', 'center_x', 'center_y', 'fwhm_major', 'fwhm_minor', 'pa',
                 'deconv_fwhm_major', 'deconv_fwhm_minor', 'deconv_pa',
                 'chi2', 'chi2/n', 'e_amplitude', 'e_center_x', 'e_center_y',
-                'e_fwhm_major', 'e_fwhm_minor', 'e_pa', 'success',]
+                'e_fwhm_major', 'e_fwhm_minor', 'e_pa', 'ampguess', 'peak',
+                'success',]
     columns = [Column(name=k, data=[fit_data[entry][k].value
                                     if hasattr(fit_data[entry][k],'value')
                                     else fit_data[entry][k]
@@ -30,7 +31,12 @@ def data_to_table(fit_data):
                             else None))
                for k in colnames]
 
-    return Table([namecol]+columns)
+    tbl = Table([namecol]+columns)
+
+    tbl['ampguess'].description = 'Amplitude guess (peak intensity - median background'
+    tbl['peak'].description = 'Peak intensity'
+
+    return tbl
 
 
 
