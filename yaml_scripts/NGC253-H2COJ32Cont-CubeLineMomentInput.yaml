@@ -1,0 +1,17 @@
+cube: FITS/NGC253-H2COJ32Cont-Feather-line.fits
+cuberegion: regions/NGC253BoxBand6H2COJ32K02.reg
+spatialmaskcube: FITS/NGC253-H213COJ32K1-Feather-line.fits
+spatialmaskcuberegion: regions/NGC253BoxBand6H2COJ32K02.reg
+vz: 258.8
+target: NGC253-H2COJ32Cont
+brightest_line_frequency: 219.560358
+width_line_frequency: 235.15172
+velocity_half_range: 150
+noisemapbright_baseline: [[150,180]]
+noisemap_baseline: [[10,15]]
+my_line_list: 234.68339, 235.15172
+my_line_widths: 70.0, 100.0
+my_line_names: CH3OH423514and542634, SO2422313
+signal_mask_limit: 2
+spatial_mask_limit: 2
+sample_pixel: (207,161)

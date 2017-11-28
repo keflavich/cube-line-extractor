@@ -10,7 +10,8 @@ velocity_half_range: 150
 noisemapbright_baseline: [[45,83],[313,327]]
 noisemap_baseline: [[177,218],[232,242]]
 my_line_list: 364.275141, 364.103249, 363.945894, 363.890896, 363.785397, 362.908208, 362.736048, 362.630304
-my_line_widths: 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0
+my_line_widths: 60.0, 60.0, 70.0, 60.0, 60.0, 60.0, 40.0, 70.0
 my_line_names: H2COJ54K332, H2COJ54K4, H2COJ54K243, SO22424, HC3N4039, CH3OH21, H2COJ54K0, HNC43
 signal_mask_limit: 2
 spatial_mask_limit: 2
+sample_pixel: (273, 159)
