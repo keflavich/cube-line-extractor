@@ -88,6 +88,7 @@ Masking Used in CubeLineMoment:
 -- [optional] Using an input ds9 regions file, mask only those spatial
 regions containing emission to process
 
+
 -- Using a limit on signal intensity derived from the noise in
 spatialmaskcube (which is defined in the parameter noisemapbright).
 Algorithm is any noisemapbright pixel with intensity (in absolute
@@ -123,3 +124,42 @@ within a linewidth of the peak velocity.
 signal_mask = subcube > signal_mask_limit * noisemap.
 
 -- Apply remaining masks: mask, spatial_mask, signal_mask.
+
+## Masking
+
+* [optional] Use ds9 regions to select spatial regions to process
+
+* Create a PPV Mask Cube based on a bright line.
+  - [optional] Select only positive values
+  - Select a subset of the cube at +/- `velocity_half_range` from 
+    the central velocity `vz`
+  - Compute peak intensity `max_map`, width `width_map`, and peak velocity
+    `peak_velocity` of this cube to use in future steps
+
+* Create a noise map `noisemapbright` based on the bright line cube
+  - Select signal-free baseline regions using the `noisemapline_baseline` parameter
+  - Compute the standard deviation in the spectral direction of the selected region
+
+* Create another noise map `noisemap` based on the target cube (the process is
+  the same as for the bright cube)
+
+* Create a spatial mask based on the peak intensity of the PPV Mask Cube:
+  pixels in the peak map `max_map` of the PPV Mask Cube above `signal_mask_limit` *
+  `noisemapbright` are included
+
+* Using the bright line maps, make a Gaussian mask cube `gauss_mask_cube` for each target line
+ - For each included _spatial_ pixel, produce a Gaussian spectrum using the centroid
+ from `peak_velocity`, the peak intensity from `max_map`, and the width from `width_map`
+ - Compute the peak signal-to-noise in each pixel by taking `max_map` / `noisemap`
+ - Determine a threshold that is 1/`peak_sn`
+ - Create a PPV inclusion mask `width_mask_cube` where `gauss_mask_cube` > `threshold`
+
+* [optional] Create a S/N mask where any PPV pixel is greater than
+  `signal_mask_limit` * `noisemap` (this is a comparison between a cube and a
+  spatial map)
+
+* Create a PPV mask `velocity_range_mask` where the velocity is within
+  `line_width` of `peak_velocity`
+
+* Select the data combining the `velocity_range_mask`, the S/N limit, and the
+  Gaussian-based `width_mask_cube`
