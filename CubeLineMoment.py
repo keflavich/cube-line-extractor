@@ -38,8 +38,8 @@ proc = psutil.Process()
 
 
 
-def cubelinemoment_setup(cube, cuberegion, ppvmaskcube,
-                         ppvmaskcuberegion, vz, target, brightest_line_frequency,
+def cubelinemoment_setup(cube, cuberegion, cutoutcube,
+                         cutoutcuberegion, vz, target, brightest_line_frequency,
                          width_line_frequency, velocity_half_range,
                          noisemapbright_baseline, noisemap_baseline,
                          spatial_mask_limit, mask_negatives=True,
@@ -59,10 +59,10 @@ def cubelinemoment_setup(cube, cuberegion, ppvmaskcube,
         The cube file name
     cuberegion : str, optional
         A ds9 region file specifying a spatial region to extract from the cube
-    ppvmaskcube : str
+    cutoutcube : str
         Filename of a cube that specifies the PPV region over which the moments
         will be extracted.
-    ppvmaskcuberegion : str, optional
+    cutoutcuberegion : str, optional
         A ds9 region file specifying a spatial region to extract from the
         spatial mask cube.  Should generally be the same as cuberegion.
         NOTE TO JEFF: should this *always* be the same as cuberegion?
@@ -115,17 +115,19 @@ def cubelinemoment_setup(cube, cuberegion, ppvmaskcube,
     # dense gas is and is not.
     # For the NGC253 Band 6 data use the C18O 2-1 line in spw1 for the dense
     # gas mask for all Band 6 lines.
-    #    ppvmaskcube = SpectralCube.read('NGC253-H213COJ32K1-Feather-line-All.fits').with_spectral_unit(u.Hz).subcube_from_ds9region(pyregion.open('ngc253boxband6tight.reg'))
-    ppvmaskcube = SpectralCube.read(ppvmaskcube).with_spectral_unit(u.Hz).subcube_from_ds9region(pyregion.open(ppvmaskcuberegion))
-    noisecube = ppvmaskcube
+    #    cutoutcube = SpectralCube.read('NGC253-H213COJ32K1-Feather-line-All.fits').with_spectral_unit(u.Hz).subcube_from_ds9region(pyregion.open('ngc253boxband6tight.reg'))
+    cutoutcube = (SpectralCube.read(cutoutcube)
+                  .with_spectral_unit(u.Hz)
+                  .subcube_from_ds9region(pyregion.open(cutoutcuberegion)))
+    noisecube = cutoutcube
     # For the NGC4945 Band 6 data use the C18O 2-1 line in spw1 for the dense
     # gas mask for all Band 6 lines.
-    #ppvmaskcube = SpectralCube.read('NGC4945-H213COJ32K1-Feather-line.fits').with_spectral_unit(u.Hz).subcube_from_ds9region(pyregion.open('ngc4945boxband6.reg'))
+    #cutoutcube = SpectralCube.read('NGC4945-H213COJ32K1-Feather-line.fits').with_spectral_unit(u.Hz).subcube_from_ds9region(pyregion.open('ngc4945boxband6.reg'))
 
     if mask_negatives is not False:
         std = cube.std()
-        posmask = ppvmaskcube > (std * mask_negatives)
-        ppvmaskcube = ppvmaskcube.with_mask(posmask)
+        posmask = cutoutcube > (std * mask_negatives)
+        cutoutcube = cutoutcube.with_mask(posmask)
 
 
     # redshift velocity
@@ -147,15 +149,15 @@ def cubelinemoment_setup(cube, cuberegion, ppvmaskcube,
     #    width = 80*u.km/u.s
     velocity_half_range = u.Quantity(velocity_half_range, u.km/u.s)
 
-    # Create a copy of the ppvmaskCube with velocity units
-    ppvmask_Vcube = ppvmaskcube.with_spectral_unit(u.km/u.s,
+    # Create a copy of the cutoutcube with velocity units
+    cutoutVcube = cutoutcube.with_spectral_unit(u.km/u.s,
                                                    rest_value=brightest_line_frequency,
                                                    velocity_convention='optical')
 
     # Use the brightest line to identify the appropriate peak velocities, but ONLY
     # from a slab including +/- width:
-    brightest_cube = ppvmask_Vcube.spectral_slab(vz-velocity_half_range,
-                                                 vz+velocity_half_range)
+    brightest_cube = cutoutVcube.spectral_slab(vz-velocity_half_range,
+                                               vz+velocity_half_range)
 
     # compute various moments & statistics along the spcetral dimension
     peak_velocity = brightest_cube.spectral_axis[brightest_cube.argmax(axis=0)]
@@ -199,8 +201,8 @@ def cubelinemoment_setup(cube, cuberegion, ppvmaskcube,
     #pl.imshow(noisemapbright.value)
     #pl.colorbar()
     hdu = noisemapbright.hdu
-    hdu.header.update(ppvmaskcube.beam.to_header_keywords())
-    hdu.header['OBJECT'] = ppvmaskcube.header['OBJECT']
+    hdu.header.update(cutoutcube.beam.to_header_keywords())
+    hdu.header['OBJECT'] = cutoutcube.header['OBJECT']
     hdu.writeto("moment0/{0}_NoiseMapBright.fits".format(target),overwrite=True)
     #
     # Use 3*noisemap for spatial masking
@@ -209,8 +211,8 @@ def cubelinemoment_setup(cube, cuberegion, ppvmaskcube,
     else:
         spatial_mask = np.fabs(peak_amplitude) > spatial_mask_limit*noisemapbright
     #hdu = spatial_mask.hdu
-    #hdu.header.update(ppvmaskcube.beam.to_header_keywords())
-    #hdu.header['OBJECT'] = ppvmaskcube.header['OBJECT']
+    #hdu.header.update(cutoutcube.beam.to_header_keywords())
+    #hdu.header['OBJECT'] = cutoutcube.header['OBJECT']
     #hdu.writeto("moment0/{0}_ppvmask.fits".format(target),overwrite=True)
     # --------------------------
 
@@ -242,7 +244,7 @@ def cubelinemoment_setup(cube, cuberegion, ppvmaskcube,
         #ax.plot(raw_spec.spectral_axis, raw_spec.value, drawstyle='steps-mid',
         #        color='k', label='Raw')
         ax = fig.add_subplot(3,1,1)
-        ppvmaskplot = ppvmaskcube[:, sample_pixel[0], sample_pixel[1]]
+        ppvmaskplot = cutoutcube[:, sample_pixel[0], sample_pixel[1]]
         ax.plot(ppvmaskplot.spectral_axis, ppvmaskplot.value,
                 drawstyle='steps-mid', color='k', label='PPV Mask')
         ax.set_title('PPV Mask')
@@ -259,14 +261,14 @@ def cubelinemoment_setup(cube, cuberegion, ppvmaskcube,
                  drawstyle='steps-mid', color='r', label='Brightest')
         ax3.set_title('Brightest')
 
-        ax2.plot(brightest_cube.with_spectral_unit(ppvmaskcube.spectral_axis.unit).spectral_axis.value,
+        ax2.plot(brightest_cube.with_spectral_unit(cutoutcube.spectral_axis.unit).spectral_axis.value,
                  brightestspec.value,
                  drawstyle='steps-mid', color='r', label='Brightest',
                  zorder=-1, linewidth=2)
 
         fig.savefig('diagnostics/{0}_brightest_diagnostic.png'.format(target))
     
-    return (cube, ppvmaskcube, spatial_mask, noisemap, noisemapbright,
+    return (cube, cutoutcube, spatial_mask, noisemap, noisemapbright,
             centroid_map, width_map, max_map, peak_velocity)
 
 

@@ -128,8 +128,9 @@ signal_mask = subcube > signal_mask_limit * noisemap.
 ## Masking
 
 * [optional] Use ds9 regions to select spatial regions to process
+   (This should not be used, since it is not supported in later steps)
 
-* Create a PPV Mask Cube based on a bright line.
+* Create a cutout cube `cutoutcube` based on a bright line.
   - [optional] Select only positive values
   - Select a subset of the cube at +/- `velocity_half_range` from 
     the central velocity `vz`
@@ -143,8 +144,8 @@ signal_mask = subcube > signal_mask_limit * noisemap.
 * Create another noise map `noisemap` based on the target cube (the process is
   the same as for the bright cube)
 
-* Create a spatial mask based on the peak intensity of the PPV Mask Cube:
-  pixels in the peak map `max_map` of the PPV Mask Cube above `signal_mask_limit` *
+* Create a spatial mask based on the peak intensity of the bright line cutout cube `cutoutcube`:
+  pixels in the peak map `max_map` of the cutout cube above `signal_mask_limit` *
   `noisemapbright` are included
 
 * Using the bright line maps, make a Gaussian mask cube `gauss_mask_cube` for each target line
