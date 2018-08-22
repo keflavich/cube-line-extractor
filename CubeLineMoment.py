@@ -78,7 +78,11 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
     velocity_half_range : `astropy.units.Quantity` with km/s equivalence
         The approximate half-width zero-intensity of the lines.  This parameter
         is used to crop out regions of the cubes around line centers.  It
-        should be larger than the expected FWHM line width.
+        should be larger than the expected FWHM line width.  It should encompass
+        the *full width* of the line over the *whole* source, i.e., if your
+        Galaxy has a rotation curve from -100 to +100 km/s and a typical LOS
+        linewidth of 20 km/s, it should go from -120 to +120 (or may be -140 to
+        +140 to be conservative)
     noisemapbright_baseline : list of lists
         A list of pairs of indices over which the noise can be computed from
         the 'bright' cube
