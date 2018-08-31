@@ -6,7 +6,7 @@ calculates moments over a defined HWZI for each line in band.
 
 To run in ipython use:
 
-run ~/Python/CubeLineMoment.py ~/yaml_scripts/CubeLineMomentInput.yaml
+run CubeLineMoment.py yaml_scripts/CubeLineMomentInput.yaml
 
 
 YAML File Input Parameters:
