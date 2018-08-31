@@ -10,6 +10,7 @@ To run in ipython use:
 """
 from __future__ import print_function
 
+import os
 import numpy as np
 from spectral_cube import SpectralCube
 from astropy import units as u
@@ -38,8 +39,8 @@ proc = psutil.Process()
 
 
 
-def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
-                         spatialmaskcuberegion, vz, target, brightest_line_frequency,
+def cubelinemoment_setup(cube, cuberegion, cutoutcube,
+                         cutoutcuberegion, vz, target, brightest_line_frequency,
                          width_line_frequency, velocity_half_range,
                          noisemapbright_baseline, noisemap_baseline,
                          spatial_mask_limit, mask_negatives=True,
@@ -59,10 +60,10 @@ def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
         The cube file name
     cuberegion : str, optional
         A ds9 region file specifying a spatial region to extract from the cube
-    spatialmaskcube : str
+    cutoutcube : str
         Filename of a cube that specifies the PPV region over which the moments
         will be extracted.
-    spatialmaskcuberegion : str, optional
+    cutoutcuberegion : str, optional
         A ds9 region file specifying a spatial region to extract from the
         spatial mask cube.  Should generally be the same as cuberegion.
         NOTE TO JEFF: should this *always* be the same as cuberegion?
@@ -78,7 +79,11 @@ def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
     velocity_half_range : `astropy.units.Quantity` with km/s equivalence
         The approximate half-width zero-intensity of the lines.  This parameter
         is used to crop out regions of the cubes around line centers.  It
-        should be larger than the expected FWHM line width.
+        should be larger than the expected FWHM line width.  It should encompass
+        the *full width* of the line over the *whole* source, i.e., if your
+        Galaxy has a rotation curve from -100 to +100 km/s and a typical LOS
+        linewidth of 20 km/s, it should go from -120 to +120 (or may be -140 to
+        +140 to be conservative)
     noisemapbright_baseline : list of lists
         A list of pairs of indices over which the noise can be computed from
         the 'bright' cube
@@ -115,17 +120,19 @@ def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
     # dense gas is and is not.
     # For the NGC253 Band 6 data use the C18O 2-1 line in spw1 for the dense
     # gas mask for all Band 6 lines.
-    #    spatialmaskcube = SpectralCube.read('NGC253-H213COJ32K1-Feather-line-All.fits').with_spectral_unit(u.Hz).subcube_from_ds9region(pyregion.open('ngc253boxband6tight.reg'))
-    spatialmaskcube = SpectralCube.read(spatialmaskcube).with_spectral_unit(u.Hz).subcube_from_ds9region(pyregion.open(spatialmaskcuberegion))
-    noisecube = spatialmaskcube
+    #    cutoutcube = SpectralCube.read('NGC253-H213COJ32K1-Feather-line-All.fits').with_spectral_unit(u.Hz).subcube_from_ds9region(pyregion.open('ngc253boxband6tight.reg'))
+    cutoutcube = (SpectralCube.read(cutoutcube)
+                  .with_spectral_unit(u.Hz)
+                  .subcube_from_ds9region(pyregion.open(cutoutcuberegion)))
+    noisecube = cutoutcube
     # For the NGC4945 Band 6 data use the C18O 2-1 line in spw1 for the dense
     # gas mask for all Band 6 lines.
-    #spatialmaskcube = SpectralCube.read('NGC4945-H213COJ32K1-Feather-line.fits').with_spectral_unit(u.Hz).subcube_from_ds9region(pyregion.open('ngc4945boxband6.reg'))
+    #cutoutcube = SpectralCube.read('NGC4945-H213COJ32K1-Feather-line.fits').with_spectral_unit(u.Hz).subcube_from_ds9region(pyregion.open('ngc4945boxband6.reg'))
 
     if mask_negatives is not False:
         std = cube.std()
-        posmask = spatialmaskcube > (std * mask_negatives)
-        spatialmaskcube = spatialmaskcube.with_mask(posmask)
+        posmask = cutoutcube > (std * mask_negatives)
+        cutoutcube = cutoutcube.with_mask(posmask)
 
 
     # redshift velocity
@@ -147,15 +154,15 @@ def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
     #    width = 80*u.km/u.s
     velocity_half_range = u.Quantity(velocity_half_range, u.km/u.s)
 
-    # Create a copy of the SpatialMaskCube with velocity units
-    spatialmask_Vcube = spatialmaskcube.with_spectral_unit(u.km/u.s,
-                                                           rest_value=brightest_line_frequency,
-                                                           velocity_convention='optical')
+    # Create a copy of the cutoutcube with velocity units
+    cutoutVcube = cutoutcube.with_spectral_unit(u.km/u.s,
+                                                   rest_value=brightest_line_frequency,
+                                                   velocity_convention='optical')
 
     # Use the brightest line to identify the appropriate peak velocities, but ONLY
     # from a slab including +/- width:
-    brightest_cube = spatialmask_Vcube.spectral_slab(vz-velocity_half_range,
-                                                     vz+velocity_half_range)
+    brightest_cube = cutoutVcube.spectral_slab(vz-velocity_half_range,
+                                               vz+velocity_half_range)
 
     # compute various moments & statistics along the spcetral dimension
     peak_velocity = brightest_cube.spectral_axis[brightest_cube.argmax(axis=0)]
@@ -167,6 +174,8 @@ def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
 
     # NOTE: the updating header stuff will be completely redundant after
     # https://github.com/radio-astro-tools/spectral-cube/pull/383 is merged
+    if not os.path.exists('moment0'):
+        os.mkdir('moment0')
     hdu = width_map.hdu
     hdu.header['OBJECT'] = cube.header['OBJECT']
     hdu.writeto("moment0/{0}_WidthMap.fits".format(target),overwrite=True)
@@ -199,8 +208,8 @@ def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
     #pl.imshow(noisemapbright.value)
     #pl.colorbar()
     hdu = noisemapbright.hdu
-    hdu.header.update(spatialmaskcube.beam.to_header_keywords())
-    hdu.header['OBJECT'] = spatialmaskcube.header['OBJECT']
+    hdu.header.update(cutoutcube.beam.to_header_keywords())
+    hdu.header['OBJECT'] = cutoutcube.header['OBJECT']
     hdu.writeto("moment0/{0}_NoiseMapBright.fits".format(target),overwrite=True)
     #
     # Use 3*noisemap for spatial masking
@@ -209,9 +218,9 @@ def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
     else:
         spatial_mask = np.fabs(peak_amplitude) > spatial_mask_limit*noisemapbright
     #hdu = spatial_mask.hdu
-    #hdu.header.update(spatialmaskcube.beam.to_header_keywords())
-    #hdu.header['OBJECT'] = spatialmaskcube.header['OBJECT']
-    #hdu.writeto("moment0/{0}_SpatialMask.fits".format(target),overwrite=True)
+    #hdu.header.update(cutoutcube.beam.to_header_keywords())
+    #hdu.header['OBJECT'] = cutoutcube.header['OBJECT']
+    #hdu.writeto("moment0/{0}_ppvmask.fits".format(target),overwrite=True)
     # --------------------------
 
     # Now process spw of interest...
@@ -242,10 +251,10 @@ def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
         #ax.plot(raw_spec.spectral_axis, raw_spec.value, drawstyle='steps-mid',
         #        color='k', label='Raw')
         ax = fig.add_subplot(3,1,1)
-        spatialmaskplot = spatialmaskcube[:, sample_pixel[0], sample_pixel[1]]
-        ax.plot(spatialmaskplot.spectral_axis, spatialmaskplot.value,
-                drawstyle='steps-mid', color='k', label='SpatialMask')
-        ax.set_title('SpatialMask')
+        ppvmaskplot = cutoutcube[:, sample_pixel[0], sample_pixel[1]]
+        ax.plot(ppvmaskplot.spectral_axis, ppvmaskplot.value,
+                drawstyle='steps-mid', color='k', label='PPV Mask')
+        ax.set_title('PPV Mask')
 
         ax2 = fig.add_subplot(3,1,2)
         noisespec = noisecube[:, sample_pixel[0], sample_pixel[1]]
@@ -259,14 +268,14 @@ def cubelinemoment_setup(cube, cuberegion, spatialmaskcube,
                  drawstyle='steps-mid', color='r', label='Brightest')
         ax3.set_title('Brightest')
 
-        ax2.plot(brightest_cube.with_spectral_unit(spatialmaskcube.spectral_axis.unit).spectral_axis.value,
+        ax2.plot(brightest_cube.with_spectral_unit(cutoutcube.spectral_axis.unit).spectral_axis.value,
                  brightestspec.value,
                  drawstyle='steps-mid', color='r', label='Brightest',
                  zorder=-1, linewidth=2)
 
         fig.savefig('diagnostics/{0}_brightest_diagnostic.png'.format(target))
     
-    return (cube, spatialmaskcube, spatial_mask, noisemap, noisemapbright,
+    return (cube, cutoutcube, spatial_mask, noisemap, noisemapbright,
             centroid_map, width_map, max_map, peak_velocity)
 
 
@@ -499,6 +508,8 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
         pl.close('all')
 
         for moment in (0,1,2):
+            if not os.path.exists('moment{0}'.format(moment)):
+                os.mkdir('moment{0}'.format(moment))
             if moment == 2:
                 mom = msubcube.linewidth_fwhm()
             else:
