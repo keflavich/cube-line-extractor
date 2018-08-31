@@ -1,7 +1,7 @@
 cube: FITS/NGC4945-H213COJ32K1-Feather-line.fits
 cuberegion: regions/NGC4945boxband6.reg
-spatialmaskcube: FITS/NGC4945-H213COJ32K1-Feather-line.fits
-spatialmaskcuberegion: regions/NGC4945boxband6.reg
+cutoutcube: FITS/NGC4945-H213COJ32K1-Feather-line.fits
+cutoutcuberegion: regions/NGC4945boxband6.reg
 vz: 550
 target: NGC4945-H213COJ32K1
 brightest_line_frequency: 219.560358
