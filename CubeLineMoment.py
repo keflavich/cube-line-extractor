@@ -10,6 +10,7 @@ To run in ipython use:
 """
 from __future__ import print_function
 
+import os
 import numpy as np
 from spectral_cube import SpectralCube
 from astropy import units as u
@@ -173,6 +174,8 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
 
     # NOTE: the updating header stuff will be completely redundant after
     # https://github.com/radio-astro-tools/spectral-cube/pull/383 is merged
+    if not os.path.exists('moment0'):
+        os.mkdir('moment0')
     hdu = width_map.hdu
     hdu.header['OBJECT'] = cube.header['OBJECT']
     hdu.writeto("moment0/{0}_WidthMap.fits".format(target),overwrite=True)
@@ -505,6 +508,8 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
         pl.close('all')
 
         for moment in (0,1,2):
+            if not os.path.exists('moment{0}'.format(moment)):
+                os.mkdir('moment{0}'.format(moment))
             if moment == 2:
                 mom = msubcube.linewidth_fwhm()
             else:
