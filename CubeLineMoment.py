@@ -273,6 +273,9 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
                  drawstyle='steps-mid', color='r', label='Brightest',
                  zorder=-1, linewidth=2)
 
+        if not os.path.exists('diagnostics'):
+            os.mkdir('diagnostics')
+
         fig.savefig('diagnostics/{0}_brightest_diagnostic.png'.format(target))
     
     return (cube, cutoutcube, spatial_mask, noisemap, noisemapbright,
@@ -488,6 +491,8 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
 
             pl.legend(loc='center left', bbox_to_anchor=(1, 0.5))
             
+            if not os.path.exists('diagnostics'):
+                os.mkdir('diagnostics')
 
             fig.savefig("diagnostics/{0}_{1}_widthscale{2:0.1f}_sncut{3:0.1f}_widthcutscale{4:0.1f}_spectraldiagnostics.png"
                         .format(target, line_name, width_map_scaling,
