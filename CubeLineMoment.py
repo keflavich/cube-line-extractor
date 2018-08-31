@@ -538,6 +538,9 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
                 print("Moment {0} for sample pixel is {1}"
                       .format(moment, mom[sample_pixel]))
 
+        if not os.path.exists('subcubes'):
+            os.mkdir('subcubes')
+
         subcube_outname = ('subcubes/{0}_{1}_widthscale{4:0.1f}_widthcutscale{2:0.1f}_sncut{3:0.1f}_subcube.fits'
                            .format(target, line_name, width_cut_scaling,
                                    signal_mask_limit or 999, width_map_scaling))
