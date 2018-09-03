@@ -1,5 +1,7 @@
 # mangum_galaxies
 
+CubeLineMoment.py:
+
 Script to derive Moment0, Moment1, and Moment2 from a set of
 input-defined spectral lines in an image cube.  Currently simply
 calculates moments over a defined HWZI for each line in band. 
@@ -164,3 +166,35 @@ signal_mask = subcube > signal_mask_limit * noisemap.
 
 * Select the data combining the `velocity_range_mask`, the S/N limit, and the
   Gaussian-based `width_mask_cube`
+
+
+GaussfitGalaxies.py:
+
+An implementation of gaussfit_catalog (see
+https://github.com/radio-astro-tools/gaussfit_catalog) in astropy to
+do gaussian fits to a list of input FITS files using a list of input
+positions from a DS9 regions file. 
+
+If you have input regions which are off the image, the script will squawk but not crash.
+
+The input regions are the initial guesses, but they should be very
+close to the peak.  Note that gaussfit_catalog is catered to
+situations where the background was a significant confusing factor
+once you got more than 1-2 beam FWHM from the peak, so it is quite
+restrictive in how far it will wander beyond the initial position
+guess.
+
+The four panels in the output png files are showing:
+* Top Left: Data
+* Top Right: Fit
+* Bottom Left: Residual
+* Bottom Right: Data with the fit contoured on top
+
+The .ipac files are in the "ascii.ipac” format from astropy.  In those
+files, the non-obvious columns are: 
+* chi2_n = chi2/n_pixels, which is close to a reduced chi2
+* PA is defined as east-from-north
+
+Two examples of a similar implementation of gaussfit_catalog are:
+https://github.com/keflavich/W51_ALMA_2013.1.00308.S/blob/0789ccbb2fd3bfe801cfb63818ad2696825d076f/analysis/longbaseline/gaussfit_sources.py
+https://github.com/keflavich/SgrB2_ALMA_3mm_Mosaic/blob/93fe253f6de499cc91779bdae4f0e22ab806c161/analysis/gaussfit_sources.py
