@@ -1,6 +1,6 @@
 # mangum_galaxies
 
-CubeLineMoment.py:
+## CubeLineMoment.py:
 
 Script to derive Moment0, Moment1, and Moment2 from a set of
 input-defined spectral lines in an image cube.  Currently simply
@@ -127,7 +127,7 @@ signal_mask = subcube > signal_mask_limit * noisemap.
 
 -- Apply remaining masks: mask, spatial_mask, signal_mask.
 
-## Masking
+# Masking
 
 * [optional] Use ds9 regions to select spatial regions to process
    (This should not be used, since it is not supported in later steps)
@@ -168,7 +168,7 @@ signal_mask = subcube > signal_mask_limit * noisemap.
   Gaussian-based `width_mask_cube`
 
 
-GaussfitGalaxies.py:
+## GaussfitGalaxies.py:
 
 An implementation of gaussfit_catalog (see
 https://github.com/radio-astro-tools/gaussfit_catalog) in astropy to
