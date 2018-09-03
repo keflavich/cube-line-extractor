@@ -1,3 +1,7 @@
+"""
+A tool for fitting Gaussians to fit 2D Gaussians to sources specified
+in a catalog/region file.
+"""
 import regions
 from astropy import units as u
 #import paths
