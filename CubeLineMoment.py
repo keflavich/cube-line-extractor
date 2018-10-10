@@ -15,7 +15,7 @@ import numpy as np
 from spectral_cube import SpectralCube
 from astropy import units as u
 from astropy import constants
-import pyregion
+import regions
 import pylab as pl
 import yaml
 import pyspeckit
@@ -99,6 +99,11 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
         whose *peak intensity* is below this limit will be flagged out.
     mask_negatives : float or bool
         Mask out negatives below N-sigma negative.
+    sample_pixel : tuple
+        A set of (x,y) coordinates to sample from the cutout cube to create
+        diagnostic images.  Note that these must be *in the frame of the cutout
+        cube*, which means you may need to do a little math to make sure
+        they're correct.  If left as `None`, no diagnostic images will be made.
 
 
     Returns
@@ -113,21 +118,21 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
     # cut out a region that only includes the Galaxy (so we don't have to worry
     # about masking later)
     if cuberegion is not None:
-        cube = cube.subcube_from_ds9region(pyregion.open(cuberegion))
+        cube = cube.subcube_from_regions(regions.read_ds9(cuberegion))
 
     # --------------------------
     # Define a spatial mask that guides later calculations by defining where
     # dense gas is and is not.
     # For the NGC253 Band 6 data use the C18O 2-1 line in spw1 for the dense
     # gas mask for all Band 6 lines.
-    #    cutoutcube = SpectralCube.read('NGC253-H213COJ32K1-Feather-line-All.fits').with_spectral_unit(u.Hz).subcube_from_ds9region(pyregion.open('ngc253boxband6tight.reg'))
+    #    cutoutcube = SpectralCube.read('NGC253-H213COJ32K1-Feather-line-All.fits').with_spectral_unit(u.Hz).subcube_from_regions(regions.read_ds9('ngc253boxband6tight.reg'))
     cutoutcube = (SpectralCube.read(cutoutcube)
                   .with_spectral_unit(u.Hz)
-                  .subcube_from_ds9region(pyregion.open(cutoutcuberegion)))
+                  .subcube_from_regions(regions.read_ds9(cutoutcuberegion)))
     noisecube = cutoutcube
     # For the NGC4945 Band 6 data use the C18O 2-1 line in spw1 for the dense
     # gas mask for all Band 6 lines.
-    #cutoutcube = SpectralCube.read('NGC4945-H213COJ32K1-Feather-line.fits').with_spectral_unit(u.Hz).subcube_from_ds9region(pyregion.open('ngc4945boxband6.reg'))
+    #cutoutcube = SpectralCube.read('NGC4945-H213COJ32K1-Feather-line.fits').with_spectral_unit(u.Hz).subcube_from_regions(regions.read_ds9('ngc4945boxband6.reg'))
 
     if mask_negatives is not False:
         std = cube.std()
@@ -277,7 +282,7 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
             os.mkdir('diagnostics')
 
         fig.savefig('diagnostics/{0}_brightest_diagnostic.png'.format(target))
-    
+
     return (cube, cutoutcube, spatial_mask, noisemap, noisemapbright,
             centroid_map, width_map, max_map, peak_velocity)
 
@@ -370,7 +375,7 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             # i.e., if the S/N=6, then the threshold will be 6-sigma
             # (this can be modified as you see fit)
             threshold = 1 / peak_sn
-                                
+
             print("Highest Threshold: {0}".format(np.nanmax(threshold)))
             #print("Lowest Threshold: {0}".format((threshold[threshold>0].min())))
             if sample_pixel:
@@ -490,7 +495,7 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
                         alpha=0.5, zorder=-10, linewidth=3)
 
             pl.legend(loc='center left', bbox_to_anchor=(1, 0.5))
-            
+
             if not os.path.exists('diagnostics'):
                 os.mkdir('diagnostics')
 
@@ -501,7 +506,7 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
 
         # Now write output.  Note that moment0, moment1, and moment2 directories
         # must already exist...
-    
+
         labels = {0: 'Integrated Intensity [{0}]',
                   1: '$V_{{LSR}}$ [{0}]',
                   #2: '$\sigma_v$ [{0}]',
@@ -623,7 +628,7 @@ def main():
                         help='The name of the YAML parameter file')
 
     args = parser.parse_args()
-    
+
     infile = args.param_file
 
     # Read input file which sets all parameters for processing
