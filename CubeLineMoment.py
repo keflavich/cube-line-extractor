@@ -544,12 +544,17 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
                         .format(moment, target, line_name, width_map_scaling,
                                 signal_mask_limit or 999, width_cut_scaling), overwrite=True)
             pl.figure(1).clf()
-            mom.quicklook() #filename='moment{0}/{1}_{2}_moment{0}.png'.format(moment,target,line_name))
-            mom.FITSFigure.colorbar.show(axis_label_text=labels[moment].format(mom.unit.to_string('latex_inline')))
-            mom.FITSFigure.save(filename='moment{0}/{1}_{2}_moment{0}_widthscale{3:0.1f}_sncut{4:0.1f}_widthcutscale{5:0.1f}.png'
-                                .format(moment, target, line_name,
-                                        width_map_scaling, signal_mask_limit or 999, width_cut_scaling))
-            mom.FITSFigure.close()
+            mom.quicklook()
+            figfilename = ('moment{0}/{1}_{2}_moment{0}_widthscale{3:0.1f}_sncut{4:0.1f}_widthcutscale{5:0.1f}.png'
+                           .format(moment, target, line_name,
+                                   width_map_scaling, signal_mask_limit or 999,
+                                   width_cut_scaling))
+            if hasattr(mom, 'FITSFigure'):
+                mom.FITSFigure.colorbar.show(axis_label_text=labels[moment].format(mom.unit.to_string('latex_inline')))
+                mom.FITSFigure.save(filename=figfilename)
+                mom.FITSFigure.close()
+            else:
+                mom.figure.savefig(figfilename)
             moments[moment] = mom
 
             if sample_pixel is not None:
