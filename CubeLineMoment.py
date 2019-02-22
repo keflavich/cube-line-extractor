@@ -18,7 +18,6 @@ from astropy import constants
 import regions
 import pylab as pl
 import yaml
-import pyspeckit
 import warnings
 import ast
 from astropy import wcs
@@ -128,7 +127,9 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
     #    cutoutcube = SpectralCube.read('NGC253-H213COJ32K1-Feather-line-All.fits').with_spectral_unit(u.Hz).subcube_from_regions(regions.read_ds9('ngc253boxband6tight.reg'))
     cutoutcube = (SpectralCube.read(cutoutcube)
                   .with_spectral_unit(u.Hz)
-                  .subcube_from_regions(regions.read_ds9(cutoutcuberegion)))
+                  )
+    if cutoutcuberegion is not None:
+        cutoutcube = cutoutcube.subcube_from_regions(regions.read_ds9(cutoutcuberegion))
     noisecube = cutoutcube
     # For the NGC4945 Band 6 data use the C18O 2-1 line in spw1 for the dense
     # gas mask for all Band 6 lines.
@@ -553,6 +554,7 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
 
         # finally, optionally, do some pyspeckit fitting
         if fit:
+            import pyspeckit
             msubcube_allvalid = msubcube._new_cube_with()
             msubcube_allvalid._mask = None
             pcube = pyspeckit.Cube(cube=msubcube)
@@ -584,6 +586,7 @@ def pyspeckit_fit_cube(cube, max_map, centroid_map, width_map, noisemap,
     This is experimental and doesn't really work: the idea here is to fit all
     lines in the cube simultaneously.
     """
+    import pyspeckit
 
     vz = u.Quantity(vz, u.km/u.s)
 
@@ -641,8 +644,11 @@ def main():
     with open(infile) as fh:
         params = yaml.load(fh)
 
-    print(params)
 
+
+    for par in params:
+        if params[par] == 'None':
+            params[par] = None
 
     if params['signal_mask_limit'] == 'None':
         params['signal_mask_limit'] = None
@@ -661,6 +667,8 @@ def main():
     params['my_line_names'] = params['my_line_names'].split(", ")
     if 'sample_pixel' in params:
         params['sample_pixel'] = ast.literal_eval(params['sample_pixel'])
+
+    print(params)
 
     # Read parameters from dictionary
 
@@ -720,3 +728,4 @@ def main():
 if __name__ == "__main__":
     new_locals = main()
     locals().update(new_locals)
+
