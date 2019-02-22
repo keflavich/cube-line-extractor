@@ -7,6 +7,18 @@ To run in ipython use:
 
 >>> %run CubeLineMoment.py inputfile.yaml
 
+Requirements:
+    aplpy
+    pyspeckit
+    spectral-cube
+    radio-beam
+    yaml
+
+You can install all of these in CASA by doing:
+
+    import subprocess,sys
+    subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--user', 'aplpy', 'pyspeckit', 'spectral-cube', 'radio-beam', 'yaml'])
+
 """
 from __future__ import print_function
 
