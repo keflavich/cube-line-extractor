@@ -633,6 +633,12 @@ def pyspeckit_fit_cube(cube, max_map, centroid_map, width_map, noisemap,
                   errmap=noisemap.value)
 
 
+def parse_floatlist(flist):
+    if ',' in flist:
+        return list(map(float, flist.split(", ")))
+    else:
+        return [float(flist)]
+
 def main():
     """
     To avoid ridiculous namespace clashes
@@ -670,17 +676,17 @@ def main():
     if params['signal_mask_limit'] == 'None':
         params['signal_mask_limit'] = None
     elif hasattr(params['signal_mask_limit'], 'split'):
-        params['signal_mask_limit'] = list(map(float, params['signal_mask_limit'].split(", ")))
+        params['signal_mask_limit'] = parse_floatlist(params['signal_mask_limit'])
     if params['spatial_mask_limit'] == 'None':
         params['spatial_mask_limit'] = None
     elif hasattr(params['spatial_mask_limit'], 'split'):
-        params['spatial_mask_limit'] = list(map(float, params['spatial_mask_limit'].split(", ")))
+        params['spatial_mask_limit'] = parse_floatlist(params['spatial_mask_limit'])
     if 'width_map_scaling' in params and hasattr(params['width_map_scaling'], 'split'):
-        params['width_map_scaling'] = list(map(float, params['width_map_scaling'].split(", ")))
+        params['width_map_scaling'] = parse_floatlist(params['width_map_scaling'])
     if 'width_cut_scaling' in params and hasattr(params['width_cut_scaling'], 'split'):
-        params['width_cut_scaling'] = list(map(float, params['width_cut_scaling'].split(", ")))
-    params['my_line_list'] = u.Quantity(list(map(float, params['my_line_list'].split(", "))), u.GHz)
-    params['my_line_widths'] = u.Quantity(list(map(float, params['my_line_widths'].split(", "))), u.km/u.s)
+        params['width_cut_scaling'] = parse_floatlist(params['width_cut_scaling'])
+    params['my_line_list'] = u.Quantity(parse_floatlist(params['my_line_list'].split(", "))), u.GHz)
+    params['my_line_widths'] = u.Quantity(parse_floatlist(params['my_line_widths']), u.km/u.s)
     params['my_line_names'] = params['my_line_names'].split(", ")
     if 'sample_pixel' in params:
         params['sample_pixel'] = ast.literal_eval(params['sample_pixel'])
