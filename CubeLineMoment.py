@@ -638,7 +638,7 @@ def parse_floatlist(flist):
         if ',' in flist:
             return list(map(float, flist.split(", ")))
         elif isinstance(flist, list):
-            return flist
+            return list(map(float, flist))
         else:
             return [float(flist)]
     except:
