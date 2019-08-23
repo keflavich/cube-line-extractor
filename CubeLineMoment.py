@@ -705,11 +705,10 @@ def main():
 #        params['sample_pixel'] = ast.literal_eval(params['sample_pixel'])
         # Check to make sure that sample pixel regions file exists.  Open it if
         #  it does exist, and exit script if it does not exist.
-        if os.path.isfile(params['sample_pixel']) == True:
+        if os.path.isfile(params['sample_pixel']):
             regsample = regions.read_ds9(params['sample_pixel'])
         else:
-            print(params['sample_pixel'],' does not exist...terminating')
-            exit()
+            raise ValueError("Sample pixel {0} does not exist.".format(params['sample_pixel']))
         #
         # Currently can handle only one sample_pixel position, so assume regions
         #  file includes only one region.  For future, this is where one would
