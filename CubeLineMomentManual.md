@@ -49,9 +49,10 @@ To run in ipython use:
 
 **spatial_mask_limit [float]:** Multiplier for noise-based spatial masking. Signal less than spatial_mask_limit times RMS noise is masked. Example: 2
 
+**sample_pixel [str, optional]:** A set of (x,y) coordinates to sample from the cutout cube to create diagnostic images.  Assumed to be in (RA,Dec) coordinates in a ds9 regions file, and must be within the cutout image area.  If left as `None`, no diagnostic images will be made.
+
 ## Masking Used in CubeLineMoment:
 
-* [optional] Use ds9 regions to select spatial regions to process (This should not be used, since it is not supported in later steps)
 * Create a cutout cube **cutoutcube** based on a bright line.
   * [optional] Select only positive values (set by **mask_negatives** parameter)
   * Select a subset of the cube at +/- **velocity_half_range** from the central velocity **vz**
@@ -69,6 +70,7 @@ To run in ipython use:
 * [optional] Create a S/N mask where any PPV pixel is greater than **signal_mask_limit * noisemap** (this is a comparison between a cube and a spatial map)
 * Create a PPV mask **velocity_range_mask** where the velocity is within **line_width** of **peak_velocity**
 * Select the data combining the **velocity_range_mask**, the S/N limit, and the Gaussian-based **width_mask_cube**
+* [optional] Use ds9 regions to select spatial regions to process (This should not be used, since it is not supported in later steps)
 
 ## Worked Example
 
