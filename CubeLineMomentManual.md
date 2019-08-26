@@ -49,7 +49,7 @@ To run in ipython use:
 
 **spatial_mask_limit [float]:** Multiplier for noise-based spatial masking. Signal less than spatial_mask_limit times RMS noise is masked. Example: 2
 
-**sample_pixel [str, optional]:** A set of (x,y) coordinates to sample from the cutout cube to create diagnostic images.  Assumed to be in (RA,Dec) coordinates in a ds9 regions file, and must be within the cutout image area.  If left as `None`, no diagnostic images will be made.
+**sample_pixel [str, optional]:** A set of (x,y) coordinates to sample from the cutout cube to create diagnostic images.  Assumed to be in a ds9 regions file, and must be within the cutout image area.  If left as `None`, no diagnostic images will be made.  *Note that the choice of the diagnostic position is very important, as it allows you to diagnose how well you have set **my_line_widths**.
 
 ## Masking Used in CubeLineMoment:
 
