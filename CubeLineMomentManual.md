@@ -3,6 +3,12 @@
 
 Script to derive Moment0, Moment1, and Moment2 from a set of input-defined spectral lines in an image cube. Currently simply calculates moments over a defined HWZI for each line specified.
 
+## N.B.
+1. It is important to keep in mind that one needs to set **sample_pixel** in order to get diagnostic plots, otherwise 
+none will be produced. 
+2. The **choice of sample pixel** is significant, and can impact the quality of the moment maps generated.
+It is best to choose one of the strongest peaks in the intensity for the setup.
+
 ## Requirements
 
     aplpy
