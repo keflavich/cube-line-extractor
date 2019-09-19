@@ -649,7 +649,9 @@ def pyspeckit_fit_cube(cube, max_map, centroid_map, width_map, noisemap,
 
 def parse_floatlist(flist):
     try:
-        if ',' in flist:
+        if isinstance(flist, float):
+            return [flist]
+        elif ',' in flist:
             return list(map(float, flist.split(", ")))
         elif isinstance(flist, list):
             return list(map(float, flist))
