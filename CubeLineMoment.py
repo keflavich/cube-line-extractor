@@ -697,7 +697,7 @@ def main():
         params['width_map_scaling'] = parse_floatlist(params['width_map_scaling'])
     if 'width_cut_scaling' in params and hasattr(params['width_cut_scaling'], 'split'):
         params['width_cut_scaling'] = parse_floatlist(params['width_cut_scaling'])
-    params['my_line_list'] = u.Quantity(parse_floatlist(params['my_line_list'].split(", ")), u.GHz)
+    params['my_line_list'] = u.Quantity(parse_floatlist(params['my_line_list']), u.GHz)
     params['my_line_widths'] = u.Quantity(parse_floatlist(params['my_line_widths']), u.km/u.s)
     params['my_line_names'] = params['my_line_names'].split(", ")
     if 'sample_pixel' in params:
