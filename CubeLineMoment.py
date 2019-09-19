@@ -112,9 +112,9 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
         Mask out negatives below N-sigma negative.
     sample_pixel : str, optional
         A set of (x,y) coordinates to sample from the cutout cube to create
-        diagnostic images.  Assumed to be in (RA,Dec) coordinates in a
-        regions file, and must be within the cutout image area.  If left 
-        as `None`, no diagnostic images will be made.
+        diagnostic images.  Assumed to be in a regions file, and must be 
+        within the cutout image area.  If left as `None`, no diagnostic 
+        images will be made.
 
 
     Returns
@@ -215,8 +215,12 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
     inds = np.arange(noisecube.shape[0])
     mask = np.zeros_like(inds, dtype='bool')
     for low,high in noisemapbright_baseline:
-        mask[low:high] = True
-
+        # Check to see if noisemapbright_baseline is within noisecube channel range
+        if (low <= noisecube.header['NAXIS3']) and (high <= noisecube.header['NAXIS3']):
+            mask[low:high] = True
+        else:
+            raise ValueError("noisemapbright_baseline ({0},{1}) out of range ({2},{3})".format(low,high,0,noisecube.header['NAXIS3']))
+        
     # need to use an unmasked cube
     noisemapbright = noisecube.with_mask(mask[:,None,None]).std(axis=0)
     print("noisemapbright peak = {0}".format(np.nanmax(noisemapbright)))
@@ -252,7 +256,11 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
     inds = np.arange(cube.shape[0])
     mask = np.zeros_like(inds, dtype='bool')
     for low,high in noisemap_baseline:
-        mask[low:high] = True
+        # Check to see if noisemap_baseline is within cube channel range
+        if (low <= cube.header['NAXIS3']) and (high <= cube.header['NAXIS3']):
+            mask[low:high] = True
+        else:
+            raise ValueError("noisemap_baseline ({0},{1}) out of range ({2},{3})".format(low,high,0,cube.header['NAXIS3']))
     noisemap = cube.with_mask(mask[:,None,None]).std(axis=0)
     hdu = noisemap.hdu
     hdu.header.update(cube.beam.to_header_keywords())

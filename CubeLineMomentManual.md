@@ -3,6 +3,12 @@
 
 Script to derive Moment0, Moment1, and Moment2 from a set of input-defined spectral lines in an image cube. Currently simply calculates moments over a defined HWZI for each line specified.
 
+## N.B.
+1. It is important to keep in mind that one needs to set **sample_pixel** in order to get diagnostic plots, otherwise 
+none will be produced. 
+2. The **choice of sample pixel** is significant, and can impact the quality of the moment maps generated.
+It is best to choose one of the strongest peaks in the intensity for the setup.
+
 ## Requirements
 
     aplpy
@@ -49,7 +55,7 @@ To run in ipython use:
 
 **spatial_mask_limit [float]:** Multiplier for noise-based spatial masking. Signal less than spatial_mask_limit times RMS noise is masked. Example: 2
 
-**sample_pixel [str, optional]:** A set of (x,y) coordinates to sample from the cutout cube to create diagnostic images.  Assumed to be in (RA,Dec) coordinates in a ds9 regions file, and must be within the cutout image area.  If left as `None`, no diagnostic images will be made.
+**sample_pixel [str, optional]:** A set of (x,y) coordinates to sample from the cutout cube to create diagnostic images.  Assumed to be in a ds9 regions file, and must be within the cutout image area.  If left as `None`, no diagnostic images will be made.  *Note that the choice of the diagnostic position is very important, as it allows you to diagnose how well you have set **my_line_widths**.
 
 ## Masking Used in CubeLineMoment:
 
