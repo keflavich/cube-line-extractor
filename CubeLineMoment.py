@@ -129,7 +129,11 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
     # cut out a region that only includes the Galaxy (so we don't have to worry
     # about masking later)
     if cuberegion is not None:
-        cube = cube.subcube_from_regions(regions.read_ds9(cuberegion))
+        #cube = cube.subcube_from_regions(regions.read_ds9(cuberegion))
+        try:
+            cube = cube.subcube_from_regions(regions.read_ds9(cuberegion))
+        except AttributeError:
+            cube = cube.subcube_from_regions(regions.Regions.read(cuberegion))
 
     # --------------------------
     # Define a spatial mask that guides later calculations by defining where
@@ -141,7 +145,10 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
                   .with_spectral_unit(u.Hz)
                   )
     if cutoutcuberegion is not None:
-        cutoutcube = cutoutcube.subcube_from_regions(regions.read_ds9(cutoutcuberegion))
+        try:
+            cutoutcube = cutoutcube.subcube_from_regions(regions.read_ds9(cutoutcuberegion))
+        except AttributeError:
+            cutoutcube = cutoutcube.subcube_from_regions(regions.Regions.read(cutoutcuberegion))
     noisecube = cutoutcube
     # For the NGC4945 Band 6 data use the C18O 2-1 line in spw1 for the dense
     # gas mask for all Band 6 lines.
@@ -151,7 +158,6 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
         std = cube.std()
         posmask = cutoutcube > (std * mask_negatives)
         cutoutcube = cutoutcube.with_mask(posmask)
-
 
     # redshift velocity
     #    vz = 258.8*u.km/u.s # For NGC253
@@ -186,29 +192,25 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
     peak_velocity = brightest_cube.spectral_axis[brightest_cube.argmax(axis=0)]
     max_map = peak_amplitude = brightest_cube.max(axis=0)
     width_map = brightest_cube.linewidth_sigma() # or vcube.moment2(axis=0)**0.5
-    fwhm_map = brightest_cube.linewidth_fwhm() # FOR TESTING
-    sqrtmom2_map = brightest_cube.moment2(axis=0)**0.5 # FOR TESTING
     centroid_map = brightest_cube.moment1(axis=0)
 
-    # NOTE: the updating header stuff will be completely redundant after
-    # https://github.com/radio-astro-tools/spectral-cube/pull/383 is merged
     if not os.path.exists('moment0'):
         os.mkdir('moment0')
     hdu = width_map.hdu
-    hdu.header['OBJECT'] = cube.header['OBJECT']
+    #hdu.header['OBJECT'] = cube.header['OBJECT']
     hdu.writeto("moment0/{0}_WidthMap.fits".format(target),overwrite=True)
     hdu = centroid_map.hdu
-    hdu.header['OBJECT'] = cube.header['OBJECT']
+    #hdu.header['OBJECT'] = cube.header['OBJECT']
     hdu.writeto("moment0/{0}_CentroidMap.fits".format(target),overwrite=True)
     hdu = peak_amplitude.hdu
-    hdu.header['OBJECT'] = cube.header['OBJECT']
+    #hdu.header['OBJECT'] = cube.header['OBJECT']
     hdu.writeto("moment0/{0}_MaxMap.fits".format(target),overwrite=True)
-    hdu = fwhm_map.hdu
-    hdu.header['OBJECT'] = cube.header['OBJECT']
-    hdu.writeto("moment0/{0}_FWHMMap.fits".format(target),overwrite=True)
-    hdu = sqrtmom2_map.hdu
-    hdu.header['OBJECT'] = cube.header['OBJECT']
-    hdu.writeto("moment0/{0}_SQRTMOM2Map.fits".format(target),overwrite=True)
+    #hdu = fwhm_map.hdu
+    #hdu.header['OBJECT'] = cube.header['OBJECT']
+    #hdu.writeto("moment0/{0}_FWHMMap.fits".format(target),overwrite=True)
+    #hdu = sqrtmom2_map.hdu
+    #hdu.header['OBJECT'] = cube.header['OBJECT']
+    #hdu.writeto("moment0/{0}_SQRTMOM2Map.fits".format(target),overwrite=True)
 
 
     # From NGC253 H213COJ32K1 spectral baseline
@@ -473,7 +475,6 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             ax1 = fig.add_subplot(2,1,1)
             subcubesp = subcube[:, sample_pixel[0], sample_pixel[1]]
             ax1.plot(subcubesp.spectral_axis, subcubesp.value,
-#                     drawstyle='steps-mid', color='k', label='subcube')
                      drawstyle='steps-mid', color='k', label='subcube')
             ax1.set_title('subcube at '+regionlabel)
 
@@ -568,6 +569,8 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
                 mom.FITSFigure.save(filename=figfilename)
                 mom.FITSFigure.close()
             else:
+                print('FITSFigure attribute missing...install aplpy to get prettier quicklook plots.')
+                print('Try: pip install aplpy')
                 mom.figure.savefig(figfilename)
             moments[moment] = mom
 
@@ -699,8 +702,6 @@ def main():
     with open(infile) as fh:
         params = yaml.load(fh, Loader=yaml.FullLoader)
 
-
-
     for par in params:
         if params[par] == 'None':
             params[par] = None
@@ -726,7 +727,10 @@ def main():
         # Check to make sure that sample pixel regions file exists.  Open it if
         #  it does exist, and exit script if it does not exist.
         if os.path.isfile(params['sample_pixel']):
-            regsample = regions.read_ds9(params['sample_pixel'])
+            try:
+                regsample = regions.read_ds9(params['sample_pixel'])
+            except AttributeError:
+                regsample = regions.Regions.read(params['sample_pixel'])
         else:
             raise ValueError("Sample pixel {0} does not exist.".format(params['sample_pixel']))
         #
@@ -735,12 +739,14 @@ def main():
         #  read multiple sample_pixel positions.
         cutoutcube_tmp = (SpectralCube.read(params['cutoutcube']).with_spectral_unit(u.Hz))
         if params['cutoutcuberegion'] is not None:
-            cutoutcube_tmp = cutoutcube_tmp.subcube_from_regions(regions.read_ds9(params['cutoutcuberegion']))
-        params['sample_pixel'] = (np.int(regsample[0].to_pixel(wcs.WCS(cutoutcube_tmp.header)).center.x), np.int(regsample[0].to_pixel(wcs.WCS(cutoutcube_tmp.header)).center.y))
+            try:
+                cutoutcube_tmp = cutoutcube_tmp.subcube_from_regions(regions.read_ds9(params['cutoutcuberegion']))
+            except AttributeError:
+                cutoutcube_tmp = cutoutcube_tmp.subcube_from_regions(regions.Regions.read(params['cutoutcuberegion']))
+        params['sample_pixel'] = (int(regsample[0].to_pixel(wcs.WCS(cutoutcube_tmp.header)).center.x), int(regsample[0].to_pixel(wcs.WCS(cutoutcube_tmp.header)).center.y))
         # Grab region label to use for plot title later
-        regionlabel = regsample[0].meta.get('label')
+        regionlabel = regsample[0].meta.get('text')
         print('Sample Pixel = ',params['sample_pixel'],'\n','Sample Pixel Type = ',type(params['sample_pixel']))
-
 
     print(params)
 
