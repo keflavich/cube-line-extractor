@@ -51,7 +51,8 @@ proc = psutil.Process()
 
 
 def cubelinemoment_setup(cube, cuberegion, cutoutcube,
-                         cutoutcuberegion, vz, target, brightest_line_frequency,
+                         cutoutcuberegion, vz, target, brightest_line_name,
+                         brightest_line_frequency,
                          width_line_frequency, velocity_half_range,
                          noisemapbright_baseline, noisemap_baseline,
                          spatial_mask_limit, mask_negatives=True,
@@ -82,6 +83,8 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
         The line-of-sight velocity of the source, e.g., the redshift.
     target : str
         Name of the source.  Used when writing output files.
+    brightest_line_name : str
+        Name for the brightest line frequency (i.e. 'C18O_21')
     brightest_line_frequency : `astropy.units.Quantity` with Hz equivalence
         The frequency of the brightest line, used to establish the cube volume
         over which to compute moments for other lines
@@ -149,7 +152,7 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
             cutoutcube = cutoutcube.subcube_from_regions(regions.read_ds9(cutoutcuberegion))
         except AttributeError:
             cutoutcube = cutoutcube.subcube_from_regions(regions.Regions.read(cutoutcuberegion))
-    noisecube = cutoutcube
+    noisecubebright = cutoutcube
     # For the NGC4945 Band 6 data use the C18O 2-1 line in spw1 for the dense
     # gas mask for all Band 6 lines.
     #cutoutcube = SpectralCube.read('NGC4945-H213COJ32K1-Feather-line.fits').with_spectral_unit(u.Hz).subcube_from_regions(regions.read_ds9('ngc4945boxband6.reg'))
@@ -214,19 +217,24 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
 
 
     # From NGC253 H213COJ32K1 spectral baseline
-    inds = np.arange(noisecube.shape[0])
+    inds = np.arange(noisecubebright.shape[0])
     mask = np.zeros_like(inds, dtype='bool')
     for low,high in noisemapbright_baseline:
-        # Check to see if noisemapbright_baseline is within noisecube channel range
-        if (low <= noisecube.header['NAXIS3']) and (high <= noisecube.header['NAXIS3']):
+        # Check to see if noisemapbright_baseline is within noisecubebright channel range
+        if (low <= noisecubebright.header['NAXIS3']) and (high <= noisecubebright.header['NAXIS3']):
             mask[low:high] = True
         else:
-            raise ValueError("noisemapbright_baseline ({0},{1}) out of range ({2},{3})".format(low,high,0,noisecube.header['NAXIS3']))
+            raise ValueError("noisemapbright_baseline ({0},{1}) out of range ({2},{3})".format(low,high,0,noisecubebright.header['NAXIS3']))
         
     # need to use an unmasked cube
-    noisemapbright = noisecube.with_mask(mask[:,None,None]).std(axis=0)
+    noisemapbright = noisecubebright.with_mask(mask[:,None,None]).std(axis=0)
     print("noisemapbright peak = {0}".format(np.nanmax(noisemapbright)))
 
+    # Create noisemapbright_baseline mask for plotting
+    brightbaseline_mask = np.zeros_like(inds, dtype='bool')
+    for i in range(len(noisemapbright_baseline)):
+        brightbaseline_mask[noisemapbright_baseline[i][0]:noisemapbright_baseline[i][1]] = True
+    
     # Make a plot of the noise map...
     #pl.figure(2).clf()
     #pl.imshow(noisemapbright.value)
@@ -270,7 +278,8 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
     hdu.writeto("moment0/{0}_NoiseMap.fits".format(target),overwrite=True)
 
     if sample_pixel is not None:
-        print('Sample Pixel = ',sample_pixel,'\n','Sample Pixel Type = ',type(sample_pixel))
+        #print('Sample Pixel = ',sample_pixel,'\n','Sample Pixel Type = ',type(sample_pixel))
+        print('Sample Pixel = ',sample_pixel)
 
         # Create a plot showing all the analysis steps applied to the sample
         # pixel
@@ -285,25 +294,31 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
         ax = fig.add_subplot(3,1,1)
         ppvmaskplot = cutoutcube[:, sample_pixel[0], sample_pixel[1]]
         ax.plot(ppvmaskplot.spectral_axis, ppvmaskplot.value,
-                drawstyle='steps-mid', color='k', label='PPV Mask')
-        ax.set_title('PPV Mask')
+                drawstyle='steps-mid', color='k', label='Cutoutcube Spectrum')
+        ax.set_title('Cutoutcube at Sample Pixel')
 
         ax2 = fig.add_subplot(3,1,2)
-        noisespec = noisecube[:, sample_pixel[0], sample_pixel[1]]
+        #noisecubebrightmask = noisecubebright.with_mask(brightbaseline_mask[:, None, None]) # FUTURE
+        #noisespec = noisecubebrightmask[:, sample_pixel[0], sample_pixel[1]]
+        noisespec = noisecubebright[:, sample_pixel[0], sample_pixel[1]]
         ax2.plot(noisespec.spectral_axis, noisespec.value,
-                 drawstyle='steps-mid', color='b', label='Noise')
-        ax2.set_title('Noise')
+                 drawstyle='steps-mid', color='b', label='Noise Regions')
+        ax2.set_title('Noise at Sample Pixel')
 
         ax3 = fig.add_subplot(3,1,3)
         brightestspec = brightest_cube[:, sample_pixel[0], sample_pixel[1]]
         ax3.plot(brightestspec.spectral_axis, brightestspec.value,
-                 drawstyle='steps-mid', color='r', label='Brightest')
-        ax3.set_title('Brightest')
+                 drawstyle='steps-mid', color='r', label='Brightest Line PPV Mask')
+        ax3.set_title('Brightest Line at Sample Pixel')
 
         ax2.plot(brightest_cube.with_spectral_unit(cutoutcube.spectral_axis.unit).spectral_axis.value,
                  brightestspec.value,
-                 drawstyle='steps-mid', color='r', label='Brightest',
+                 drawstyle='steps-mid', color='r', label='Brightest Line PPV Mask',
                  zorder=-1, linewidth=2)
+
+        ax.legend()
+        ax2.legend()
+        ax3.legend()
 
         if not os.path.exists('diagnostics'):
             os.mkdir('diagnostics')
@@ -406,7 +421,8 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             print("Highest Threshold: {0}".format(np.nanmax(threshold)))
             #print("Lowest Threshold: {0}".format((threshold[threshold>0].min())))
             if sample_pixel:
-                print('Sample Pixel = ',sample_pixel,'\n','Sample Pixel Type = ',type(sample_pixel))
+                #print('Sample Pixel = ',sample_pixel,'\n','Sample Pixel Type = ',type(sample_pixel))
+                print('Sample Pixel = ',sample_pixel)
                 print("SP Threshold: {0}".format(threshold[sample_pixel]))
                 print("SP S, N, S/N: {0},{1},{2}"
                       .format(max_map[sample_pixel],
