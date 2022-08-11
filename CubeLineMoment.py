@@ -232,8 +232,8 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
 
     # Create noisemapbright_baseline mask for plotting
     brightbaseline_mask = np.zeros_like(inds, dtype='bool')
-    for i in range(len(noisemapbright_baseline)):
-        brightbaseline_mask[noisemapbright_baseline[i][0]:noisemapbright_baseline[i][1]] = True
+    for lo, hi in noisemapbright_baseline:
+        brightbaseline_mask[lo:hi] = True
     
     # Make a plot of the noise map...
     #pl.figure(2).clf()
