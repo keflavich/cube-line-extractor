@@ -27,7 +27,7 @@ To run in ipython use:
 
 **cuberegion [string]:** ds9 region file used to spatial mask for input FITS cube emission region. Example: regions/NGC253BoxBand6H2COJ32K02.reg
 
-**cutoutcube [string]:** Input FITS cube which contains "tracer" transition which is strong and representative of dense gas emission region traced by other molecules/transitions in cube. Example: FITS/NGC253-H213COJ32K1-Feather-line.fits
+**cutoutcube [string]:** Input FITS cube which contains "tracer" transition which is strong and representative of dense gas emission region traced by other molecules/transitions in cube. Note that this cube can be any image cube, as long as the PPV range overlaps with cuberegion.  Example: FITS/NGC253-H213COJ32K1-Feather-line.fits
 
 **cutoutcuberegion [string]:** ds9 region file used to spatial mask input FITS spatialmaskcube. Example: regions/NGC253BoxBand6H2COJ32K02.reg
 
