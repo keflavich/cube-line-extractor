@@ -303,6 +303,10 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
         noisespec = noisecubebright[:, sample_pixel[0], sample_pixel[1]]
         ax2.plot(noisespec.spectral_axis, noisespec.value,
                  drawstyle='steps-mid', color='b', label='Noise Regions')
+        noisespec_masked = noisespec.copy()
+        noisespec_masked[~brightbaseline_mask] = np.nan
+        ax2.plot(noisespec.spectral_axis, noisespec_masked.value,
+                 drawstyle='steps-mid', color='g', linewidth=3, alpha=0.5, label='Baseline-fitting region')
         ax2.set_title('Noise at Sample Pixel')
 
         ax3 = fig.add_subplot(3,1,3)
