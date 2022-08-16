@@ -167,10 +167,6 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
     vz = u.Quantity(vz, u.km/u.s) # For NGC253
     #vz = 538.2*u.km/u.s # For NGC4945
 
-    # Lines to be analyzed (including brightest_line)
-    #    target = 'NGC253'
-    #target = 'NGC4945'
-
     #    brightest_line_frequency = 219.560358*u.GHz # C18O 2-1
     brightest_line_frequency = u.Quantity(brightest_line_frequency, u.GHz) # C18O 2-1
     #    width_line = 218.222192*u.GHz # H2CO 3(03)-2(02)
@@ -219,7 +215,9 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
     # From NGC253 H213COJ32K1 spectral baseline
     inds = np.arange(noisecubebright.shape[0])
     mask = np.zeros_like(inds, dtype='bool')
+    baselinemask = mask.copy()
     for low,high in noisemapbright_baseline:
+        baselinemask[low:high] = True
         # Check to see if noisemapbright_baseline is within noisecubebright channel range
         if (low <= noisecubebright.header['NAXIS3']) and (high <= noisecubebright.header['NAXIS3']):
             mask[low:high] = True
@@ -230,6 +228,9 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
     noisemapbright = noisecubebright.with_mask(mask[:,None,None]).std(axis=0)
     print("noisemapbright peak = {0}".format(np.nanmax(noisemapbright)))
 
+    # Apply baselinemask to noisecubebright to allow plot of spectral baselines later...
+    #noisecubebright_masked = noisecubebright.with_mask(baselinemask[:,None,None])
+    
     # Create noisemapbright_baseline mask for plotting
     brightbaseline_mask = np.zeros_like(inds, dtype='bool')
     for lo, hi in noisemapbright_baseline:
@@ -298,9 +299,10 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
         ax.set_title('Cutoutcube at Sample Pixel')
 
         ax2 = fig.add_subplot(3,1,2)
-        #noisecubebrightmask = noisecubebright.with_mask(brightbaseline_mask[:, None, None]) # FUTURE
+        #noisecubebrightmask = noisecubebright.with_mask(brightbaseline_mask[:, None, None])
         #noisespec = noisecubebrightmask[:, sample_pixel[0], sample_pixel[1]]
-        noisespec = noisecubebright[:, sample_pixel[0], sample_pixel[1]]
+        #noisespec = noisecubebright[:, sample_pixel[0], sample_pixel[1]]
+        noisespec = noisecubebright_masked[:, sample_pixel[0], sample_pixel[1]] # BROKEN: Does not mask to show only spectral baseline segments
         ax2.plot(noisespec.spectral_axis, noisespec.value,
                  drawstyle='steps-mid', color='b', label='Noise Regions')
         noisespec_masked = noisespec.copy()
@@ -335,7 +337,9 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
 
 
 def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
-                             noisemap, signal_mask_limit,
+                             noisemap, noisemapbright, signal_mask_limit,
+                             spatial_mask_limit,
+                             brightest_line_name, brightest_line_frequency,
                              my_line_list, my_line_widths, my_line_names,
                              target, spatial_mask, width_map, regionlabel,
                              width_map_scaling=1.0, width_cut_scaling=1.0,
@@ -575,6 +579,15 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             hdu = mom.hdu
             hdu.header.update(cube.beam.to_header_keywords())
             hdu.header['OBJECT'] = cube.header['OBJECT']
+            #print(noisemap.std())
+            #print("noisemapbright peak = {0}".format(np.nanmax(noisemapbright)))
+            print(np.nanstd(noisemapbright))
+            hdu.header['MASKLEV0'] = (np.nanstd(noisemapbright).value,'Spatial masking stdev (noisemapbright)')
+            hdu.header['MASKLEV1'] = (noisemap.std().value,'Spectral masking stdev (noisemap)')
+            hdu.header['MASKSCL0'] = (spatial_mask_limit,'Scale for spatial (value * noisemapbright) mask')
+            hdu.header['MASKSCL1'] = (signal_mask_limit,'Scale for spectral (value * noisemap) mask')
+            hdu.header['BRTLINE'] = (brightest_line_name,'Bright line name')
+            hdu.header['BRTFRQ'] = (brightest_line_frequency,'Bright line frequency (GHz)')
             hdu.writeto("moment{0}/{1}_{2}_moment{0}_widthscale{3:0.1f}_sncut{4:0.1f}_widthcutscale{5:0.1f}.fits"
                         .format(moment, target, line_name, width_map_scaling,
                                 signal_mask_limit or 999, width_cut_scaling), overwrite=True)
@@ -780,8 +793,8 @@ def main():
     cubelinemoment_multiline(cube=cube, spatial_mask=spatial_mask,
                              peak_velocity=peak_velocity,
                              centroid_map=centroid_map, max_map=max_map,
-                             noisemap=noisemap, width_map=width_map,
-                             regionlabel=regionlabel,
+                             noisemap=noisemap, noisemapbright=noisemapbright,
+                             width_map=width_map, regionlabel=regionlabel,
                              fit=False, **params)
 
     # params.pop('signal_mask_limit')
