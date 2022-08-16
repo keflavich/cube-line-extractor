@@ -229,9 +229,13 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
     print("noisemapbright peak = {0}".format(np.nanmax(noisemapbright)))
 
     # Apply baselinemask to noisecubebright to allow plot of spectral baselines later...
-    noisecubebright_masked = noisecubebright.with_mask(baselinemask[:,None,None])
-    print(baselinemask)
-    print(noisecubebright_masked)
+    #noisecubebright_masked = noisecubebright.with_mask(baselinemask[:,None,None])
+    
+    # Create noisemapbright_baseline mask for plotting
+    brightbaseline_mask = np.zeros_like(inds, dtype='bool')
+    for lo, hi in noisemapbright_baseline:
+        brightbaseline_mask[lo:hi] = True
+    
     # Make a plot of the noise map...
     #pl.figure(2).clf()
     #pl.imshow(noisemapbright.value)
@@ -301,6 +305,10 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
         noisespec = noisecubebright_masked[:, sample_pixel[0], sample_pixel[1]] # BROKEN: Does not mask to show only spectral baseline segments
         ax2.plot(noisespec.spectral_axis, noisespec.value,
                  drawstyle='steps-mid', color='b', label='Noise Regions')
+        noisespec_masked = noisespec.copy()
+        noisespec_masked[~brightbaseline_mask] = np.nan
+        ax2.plot(noisespec.spectral_axis, noisespec_masked.value,
+                 drawstyle='steps-mid', color='g', linewidth=3, alpha=0.5, label='Baseline-fitting region')
         ax2.set_title('Noise at Sample Pixel')
 
         ax3 = fig.add_subplot(3,1,3)
