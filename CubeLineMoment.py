@@ -215,7 +215,7 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
     # From NGC253 H213COJ32K1 spectral baseline
     inds = np.arange(noisecubebright.shape[0])
     mask = np.zeros_like(inds, dtype='bool')
-    baselinemask = mask
+    baselinemask = mask.copy()
     for low,high in noisemapbright_baseline:
         baselinemask[low:high] = True
         # Check to see if noisemapbright_baseline is within noisecubebright channel range
