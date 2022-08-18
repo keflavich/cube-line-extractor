@@ -228,9 +228,6 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
     noisemapbright = noisecubebright.with_mask(mask[:,None,None]).std(axis=0)
     print("noisemapbright peak = {0}".format(np.nanmax(noisemapbright)))
 
-    # Apply baselinemask to noisecubebright to allow plot of spectral baselines later...
-    #noisecubebright_masked = noisecubebright.with_mask(baselinemask[:,None,None])
-    
     # Create noisemapbright_baseline mask for plotting
     brightbaseline_mask = np.zeros_like(inds, dtype='bool')
     for lo, hi in noisemapbright_baseline:
@@ -292,39 +289,40 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
         #        color='k', label='Raw')
         #
         #
-        ax = fig.add_subplot(3,1,1)
+        ax1 = fig.add_subplot(2,1,1)
+        ax1.set_xlabel(cutoutcube.spectral_axis.unit,labelpad=-3) # Use of labelpad here a hack...probably better solutions...
+        ax1.set_ylabel(cutoutcube.unit)
         ppvmaskplot = cutoutcube[:, sample_pixel[0], sample_pixel[1]]
-        ax.plot(ppvmaskplot.spectral_axis, ppvmaskplot.value,
+        ax1.plot(ppvmaskplot.spectral_axis, ppvmaskplot.value,
                 drawstyle='steps-mid', color='k', label='Cutoutcube Spectrum')
-        ax.set_title('Cutoutcube at Sample Pixel')
+        ax1.set_title('Cutoutcube at Sample Pixel')
 
-        ax2 = fig.add_subplot(3,1,2)
-        #noisecubebrightmask = noisecubebright.with_mask(brightbaseline_mask[:, None, None])
-        #noisespec = noisecubebrightmask[:, sample_pixel[0], sample_pixel[1]]
-        #noisespec = noisecubebright[:, sample_pixel[0], sample_pixel[1]]
-        noisespec = noisecubebright_masked[:, sample_pixel[0], sample_pixel[1]] # BROKEN: Does not mask to show only spectral baseline segments
-        ax2.plot(noisespec.spectral_axis, noisespec.value,
-                 drawstyle='steps-mid', color='b', label='Noise Regions')
+        #ax2 = fig.add_subplot(3,1,2)
+        noisespec = noisecubebright[:, sample_pixel[0], sample_pixel[1]]
+        #ax2.plot(noisespec.spectral_axis, noisespec.value,
+        #         drawstyle='steps-mid', color='b', label='Noise Regions')
         noisespec_masked = noisespec.copy()
         noisespec_masked[~brightbaseline_mask] = np.nan
-        ax2.plot(noisespec.spectral_axis, noisespec_masked.value,
+        ax1.plot(noisespec.spectral_axis, noisespec_masked.value,
                  drawstyle='steps-mid', color='g', linewidth=3, alpha=0.5, label='Baseline-fitting region')
-        ax2.set_title('Noise at Sample Pixel')
+        #ax2.set_title('Noise at Sample Pixel')
 
-        ax3 = fig.add_subplot(3,1,3)
+        ax2 = fig.add_subplot(2,1,2,sharey=ax1)
+        ax2.set_xlabel(brightest_cube.spectral_axis.unit)
+        ax2.set_ylabel(brightest_cube.unit)
         brightestspec = brightest_cube[:, sample_pixel[0], sample_pixel[1]]
-        ax3.plot(brightestspec.spectral_axis, brightestspec.value,
+        ax2.plot(brightestspec.spectral_axis, brightestspec.value,
                  drawstyle='steps-mid', color='r', label='Brightest Line PPV Mask')
-        ax3.set_title('Brightest Line at Sample Pixel')
+        #ax3.set_title('Brightest Line at Sample Pixel')
 
-        ax2.plot(brightest_cube.with_spectral_unit(cutoutcube.spectral_axis.unit).spectral_axis.value,
+        ax1.plot(brightest_cube.with_spectral_unit(cutoutcube.spectral_axis.unit).spectral_axis.value,
                  brightestspec.value,
                  drawstyle='steps-mid', color='r', label='Brightest Line PPV Mask',
                  zorder=-1, linewidth=2)
 
-        ax.legend()
+        ax1.legend()
         ax2.legend()
-        ax3.legend()
+        #ax3.legend()
 
         if not os.path.exists('diagnostics'):
             os.mkdir('diagnostics')
@@ -496,13 +494,16 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             #raw_spec = cube[:, sample_pixel[0], sample_pixel[1]]
             #ax.plot(raw_spec.spectral_axis, raw_spec.value, drawstyle='steps-mid',
             #        color='k', label='Raw')
-            ax1 = fig.add_subplot(2,1,1)
+            #ax1 = fig.add_subplot(2,1,1)
             subcubesp = subcube[:, sample_pixel[0], sample_pixel[1]]
-            ax1.plot(subcubesp.spectral_axis, subcubesp.value,
-                     drawstyle='steps-mid', color='k', label='subcube')
-            ax1.set_title('subcube at '+regionlabel)
+            #ax1.plot(subcubesp.spectral_axis, subcubesp.value,
+            #         drawstyle='steps-mid', color='k', label='subcube')
+            #ax1.set_title('subcube at '+regionlabel)
 
-            ax = fig.add_subplot(2,1,2)
+            #ax = fig.add_subplot(2,1,2)
+            ax = fig.add_subplot(1,1,1)
+            ax.set_xlabel(msubcube.spectral_axis.unit)
+            ax.set_ylabel(msubcube.unit)
             mask_ = msubcube.mask.include()[:, sample_pixel[0], sample_pixel[1]]
             maskedsubcubesp = msubcube[:, sample_pixel[0], sample_pixel[1]]
             assert np.all(np.isfinite(maskedsubcubesp[mask_]))
