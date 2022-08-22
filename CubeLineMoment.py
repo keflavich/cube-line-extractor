@@ -631,7 +631,7 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             hdu.header['OBJECT'] = cube.header['OBJECT']
             #print("noisemapbright peak = {0}".format(np.nanmax(noisemapbright)))
             hdu.header['MASKLEV0'] = (np.nanstd(noisemapbright).value,'Spatial masking stdev (noisemapbright)')
-            hdu.header['MASKLEV1'] = (np.nanstd(noisemap).std().value,'Spectral masking stdev (noisemap)')
+            hdu.header['MASKLEV1'] = (np.nanstd(noisemap).value,'Spectral masking stdev (noisemap)')
             hdu.header['MASKSCL0'] = (spatial_mask_limit,'Scale for spatial (value * noisemapbright) mask')
             hdu.header['MASKSCL1'] = (signal_mask_limit,'Scale for spectral (value * noisemap) mask')
             hdu.header['BRTLINE'] = (brightest_line_name,'Bright line name')
