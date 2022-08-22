@@ -162,7 +162,7 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
     noisecubebright = cutoutcube
 
     # MOVED SAMPLE_PIXEL INTERPRETATION HERE...
-    if sample_pixel != None:
+    if sample_pixel is not None:
         # Check to make sure that sample pixexl regions file exists.  Open it if
         #  it does exist, and exit script if it does not exist.
         if os.path.isfile(sample_pixel):
