@@ -805,7 +805,7 @@ def main():
     params['my_line_names'] = params['my_line_names'].split(", ")
     #if 'sample_pixel' in params:
     #    params['sample_pixel'] != None
-    ''''
+    '''
 #        params['sample_pixel'] = ast.literal_eval(params['sample_pixel'])
         # Check to make sure that sample pixexl regions file exists.  Open it if
         #  it does exist, and exit script if it does not exist.
