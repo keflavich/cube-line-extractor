@@ -177,8 +177,9 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
     regionlabel = []
     ww = cube.wcs.celestial
     for point in regsample:
-        xx, yy = map(int, point.to_pixel(ww))
-        sample_pixel_list.append(xx, yy, point.meta.get('text')))
+        cen = point.to_pixel(ww).center
+        xx, yy = int(cen.x), int(cen.y)
+        sample_pixel_list.append((xx, yy, point.meta.get('text')))
     #params['sample_pixel'] = sample_pixel_list
     sample_pixel = sample_pixel_list
     #print('Sample Pixel List: ',sample_pixel_list)
