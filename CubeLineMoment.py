@@ -50,13 +50,20 @@ proc = psutil.Process()
 
 
 
+#def cubelinemoment_setup(cube, cuberegion, cutoutcube,
+#                         cutoutcuberegion, vz, target, brightest_line_name,
+#                         brightest_line_frequency,
+#                         width_line_frequency, velocity_half_range,
+#                         noisemapbright_baseline, noisemap_baseline,
+#                         spatial_mask_limit, mask_negatives=True,
+#                         sample_pixel=None, **kwargs):
 def cubelinemoment_setup(cube, cuberegion, cutoutcube,
                          cutoutcuberegion, vz, target, brightest_line_name,
                          brightest_line_frequency,
                          width_line_frequency, velocity_half_range,
                          noisemapbright_baseline, noisemap_baseline,
-                         spatial_mask_limit, mask_negatives=True,
-                         sample_pixel=None, **kwargs):
+                         spatial_mask_limit, sample_pixel,
+                         mask_negatives=True, **kwargs):
     """
     For a given cube file, read it and compute the moments (0,1,2) for a
     selection of spectral lines.  This code is highly configurable.
@@ -114,10 +121,10 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
     mask_negatives : float or bool
         Mask out negatives below N-sigma negative.
     sample_pixel : str, optional
-        A set of (x,y) coordinates to sample from the cutout cube to create
+        A list of (x,y) coordinate pairs to sample from the cutout cube to create
         diagnostic images.  Assumed to be in a regions file, and must be 
-        within the cutout image area.  If left as `None`, no diagnostic 
-        images will be made.
+        within the cutout image area.  Can contain one or more sample positions.
+        If left as `None`, no diagnostic images will be made.
 
 
     Returns
@@ -153,9 +160,29 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
         except AttributeError:
             cutoutcube = cutoutcube.subcube_from_regions(regions.Regions.read(cutoutcuberegion))
     noisecubebright = cutoutcube
-    # For the NGC4945 Band 6 data use the C18O 2-1 line in spw1 for the dense
-    # gas mask for all Band 6 lines.
-    #cutoutcube = SpectralCube.read('NGC4945-H213COJ32K1-Feather-line.fits').with_spectral_unit(u.Hz).subcube_from_regions(regions.read_ds9('ngc4945boxband6.reg'))
+
+    # MOVED SAMPLE_PIXEL INTERPRETATION HERE...
+    if sample_pixel is not None:
+        # Check to make sure that sample pixexl regions file exists.  Open it if
+        #  it does exist, and exit script if it does not exist.
+        if os.path.isfile(sample_pixel):
+            try:
+                regsample = regions.read_ds9(sample_pixel)
+            except AttributeError:
+                regsample = regions.Regions.read(sample_pixel)
+        else:
+            raise ValueError("Sample pixel file {0} does not exist.".format(sample_pixel))
+
+    sample_pixel_list = []
+    regionlabel = []
+    ww = cube.wcs.celestial
+    for point in regsample:
+        cen = point.to_pixel(ww).center
+        xx, yy = int(cen.x), int(cen.y)
+        sample_pixel_list.append((xx, yy, point.meta.get('text')))
+    #params['sample_pixel'] = sample_pixel_list
+    sample_pixel = sample_pixel_list
+    #print('Sample Pixel List: ',sample_pixel_list)
 
     if mask_negatives is not False:
         std = cube.std()
@@ -270,6 +297,9 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
         else:
             raise ValueError("noisemap_baseline ({0},{1}) out of range ({2},{3})".format(low,high,0,cube.header['NAXIS3']))
     noisemap = cube.with_mask(mask[:,None,None]).std(axis=0)
+    #print('mask: ',mask[:,None,None])
+    #print('cube.with_mask(mask[:,None,None]): ',cube.with_mask(mask[:,None,None]))
+    #print('np.nanstd(noisemap).value: ',np.nanstd(noisemap).value)
     hdu = noisemap.hdu
     hdu.header.update(cube.beam.to_header_keywords())
     hdu.header['OBJECT'] = cube.header['OBJECT']
@@ -277,72 +307,84 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
 
     if sample_pixel is not None:
         #print('Sample Pixel = ',sample_pixel,'\n','Sample Pixel Type = ',type(sample_pixel))
-        print('Sample Pixel = ',sample_pixel)
+        for spixel in sample_pixel:
+            #print('Sample Pixel = ',spixel)
 
-        # Create a plot showing all the analysis steps applied to the sample
-        # pixel
-        fig = pl.figure(11)
-        fig.clf()
+        # Create a plot showing all the analysis steps applied to each of the sample
+        # pixels
+            fig = pl.figure(11)
+            fig.clf()
         #ax = fig.gca() # subplot?
         #raw_spec = cube[:, sample_pixel[0], sample_pixel[1]]
         #ax.plot(raw_spec.spectral_axis, raw_spec.value, drawstyle='steps-mid',
         #        color='k', label='Raw')
         #
         #
-        ax1 = fig.add_subplot(2,1,1)
-        ax1.set_xlabel(cutoutcube.spectral_axis.unit,labelpad=-3) # Use of labelpad here a hack...probably better solutions...
-        ax1.set_ylabel(cutoutcube.unit)
-        ppvmaskplot = cutoutcube[:, sample_pixel[0], sample_pixel[1]]
-        ax1.plot(ppvmaskplot.spectral_axis, ppvmaskplot.value,
-                drawstyle='steps-mid', color='k', label='Cutoutcube Spectrum')
-        ax1.set_title('Cutoutcube at Sample Pixel')
+            ax1 = fig.add_subplot(2,1,1)
+            ax1.set_xlabel(cutoutcube.spectral_axis.unit,labelpad=-3) # Use of labelpad here a hack...probably better solutions...
+            ax1.set_ylabel(cutoutcube.unit)
+            ppvmaskplot = cutoutcube[:, spixel[0], spixel[1]]
+            ax1.plot(ppvmaskplot.spectral_axis, ppvmaskplot.value,
+                    drawstyle='steps-mid', color='k', label='Cutoutcube Spectrum')
+            ax1.set_title('Cutoutcube at Sample Pixel: '+str(spixel[2]))
+            ax1.text(0.05,0.9,brightest_line_name,ha='left',va='center',transform=ax1.transAxes)
+            ax1.text(0.05,0.8,brightest_line_frequency,ha='left',va='center',transform=ax1.transAxes)
 
         #ax2 = fig.add_subplot(3,1,2)
-        noisespec = noisecubebright[:, sample_pixel[0], sample_pixel[1]]
+            noisespec = noisecubebright[:, spixel[0], spixel[1]]
         #ax2.plot(noisespec.spectral_axis, noisespec.value,
         #         drawstyle='steps-mid', color='b', label='Noise Regions')
-        noisespec_masked = noisespec.copy()
-        noisespec_masked[~brightbaseline_mask] = np.nan
-        ax1.plot(noisespec.spectral_axis, noisespec_masked.value,
-                 drawstyle='steps-mid', color='g', linewidth=3, alpha=0.5, label='Baseline-fitting region')
+            noisespec_masked = noisespec.copy()
+            noisespec_masked[~brightbaseline_mask] = np.nan
+            ax1.plot(noisespec.spectral_axis, noisespec_masked.value,
+                     drawstyle='steps-mid', color='g', linewidth=3, alpha=0.5, label='Baseline-fitting region')
         #ax2.set_title('Noise at Sample Pixel')
 
-        ax2 = fig.add_subplot(2,1,2,sharey=ax1)
-        ax2.set_xlabel(brightest_cube.spectral_axis.unit)
-        ax2.set_ylabel(brightest_cube.unit)
-        brightestspec = brightest_cube[:, sample_pixel[0], sample_pixel[1]]
-        ax2.plot(brightestspec.spectral_axis, brightestspec.value,
+            ax2 = fig.add_subplot(2,1,2,sharey=ax1)
+            ax2.set_xlabel(brightest_cube.spectral_axis.unit)
+            ax2.set_ylabel(brightest_cube.unit)
+            brightestspec = brightest_cube[:, spixel[0], spixel[1]]
+            ax2.plot(brightestspec.spectral_axis, brightestspec.value,
                  drawstyle='steps-mid', color='r', label='Brightest Line PPV Mask')
         #ax3.set_title('Brightest Line at Sample Pixel')
 
-        ax1.plot(brightest_cube.with_spectral_unit(cutoutcube.spectral_axis.unit).spectral_axis.value,
-                 brightestspec.value,
-                 drawstyle='steps-mid', color='r', label='Brightest Line PPV Mask',
-                 zorder=-1, linewidth=2)
+            ax1.plot(brightest_cube.with_spectral_unit(cutoutcube.spectral_axis.unit).spectral_axis.value,
+                     brightestspec.value,
+                     drawstyle='steps-mid', color='r', label='Brightest Line PPV Mask',
+                     zorder=-1, linewidth=2)
 
-        ax1.legend()
-        ax2.legend()
+            ax1.legend()
+            ax2.legend()
         #ax3.legend()
 
-        if not os.path.exists('diagnostics'):
-            os.mkdir('diagnostics')
+            if not os.path.exists('diagnostics'):
+                os.mkdir('diagnostics')
 
-        fig.savefig('diagnostics/{0}_brightest_diagnostic.png'.format(target))
+            fig.savefig('diagnostics/{0}_brightest_diagnostic_samplepixel_{1}.png'.format(target,str(spixel[2])))
 
     return (cube, cutoutcube, spatial_mask, noisemap, noisemapbright,
-            centroid_map, width_map, max_map, peak_velocity)
+            centroid_map, width_map, max_map, peak_velocity, sample_pixel)
 
 
 
+#def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
+#                             noisemap, noisemapbright, signal_mask_limit,
+#                             spatial_mask_limit,
+#                             brightest_line_name, brightest_line_frequency,
+#                             my_line_list, my_line_widths, my_line_names,
+#                             target, spatial_mask, width_map, regionlabel,
+#                             width_map_scaling=1.0, width_cut_scaling=1.0,
+#                             fit=False, apply_width_mask=True,
+#                             sample_pixel=None,
+#                             **kwargs):
 def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
                              noisemap, noisemapbright, signal_mask_limit,
                              spatial_mask_limit,
                              brightest_line_name, brightest_line_frequency,
                              my_line_list, my_line_widths, my_line_names,
-                             target, spatial_mask, width_map, regionlabel,
+                             target, spatial_mask, width_map, sample_pixel,
                              width_map_scaling=1.0, width_cut_scaling=1.0,
                              fit=False, apply_width_mask=True,
-                             sample_pixel=None,
                              **kwargs):
     """
     Given the appropriate setup, extract moment maps for each of the specified
@@ -412,6 +454,11 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             # The [:,:,None] and [None,None,:] allow arrays of shape [x,y,0] and
             # [0,0,z] to be "broadcast" together
             assert centroid_map.unit.is_equivalent(u.km/u.s)
+            # DEBUG
+            #print('Width Map: ',width_map)
+            #print('max(Width Map)',np.nanmax(width_map))
+            #print('Width Map Scaling: ',width_map_scaling)
+            # NOTE: Following line sometimes produces image with NaNs at some positions.  Should try to fix...
             gauss_mask_cube = np.exp(-(np.array(centroid_map)[None,:,:] -
                                        np.array(subcube.spectral_axis)[:,None,None])**2 /
                                      (2*np.array(width_map*width_map_scaling)[None,:,:]**2))
@@ -426,15 +473,17 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
 
             print("Highest Threshold: {0}".format(np.nanmax(threshold)))
             #print("Lowest Threshold: {0}".format((threshold[threshold>0].min())))
+            #print('Sample Pixel Inside cubelinemoment_multiline: ',sample_pixel)
             if sample_pixel:
-                #print('Sample Pixel = ',sample_pixel,'\n','Sample Pixel Type = ',type(sample_pixel))
-                print('Sample Pixel = ',sample_pixel)
-                print("SP Threshold: {0}".format(threshold[sample_pixel]))
-                print("SP S, N, S/N: {0},{1},{2}"
-                      .format(max_map[sample_pixel],
-                              noisemap[sample_pixel],
-                              peak_sn[sample_pixel],
-                             ))
+                for spixel in sample_pixel:
+                    #print('Sample Pixel = ',spixel,'\n','Sample Pixel Type = ',type(spixel))
+                    print('Sample Pixel = ',spixel[0:2])
+                    print("SP Threshold: {0}".format(threshold[spixel[0:2]]))
+                    print("SP S, N, S/N: {0}, {1}, {2}"
+                          .format(max_map[spixel[0:2]],
+                                  noisemap[spixel[0:2]],
+                                  peak_sn[spixel[0:2]],
+                                 ))
 
 
             # this will compare the gaussian cube to the threshold on a (spatial)
@@ -486,76 +535,77 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
                            signal_mask_limit or 999, width_cut_scaling))
 
         if sample_pixel is not None:
+            for spixel in sample_pixel:
             # Create a plot showing all the analysis steps applied to the sample
             # pixel
-            fig = pl.figure(11)
-            fig.clf()
+                fig = pl.figure(11)
+                fig.clf()
             #ax = fig.gca() # subplot?
             #raw_spec = cube[:, sample_pixel[0], sample_pixel[1]]
             #ax.plot(raw_spec.spectral_axis, raw_spec.value, drawstyle='steps-mid',
             #        color='k', label='Raw')
             #ax1 = fig.add_subplot(2,1,1)
-            subcubesp = subcube[:, sample_pixel[0], sample_pixel[1]]
+                subcubesp = subcube[:, spixel[0], spixel[1]]
             #ax1.plot(subcubesp.spectral_axis, subcubesp.value,
             #         drawstyle='steps-mid', color='k', label='subcube')
             #ax1.set_title('subcube at '+regionlabel)
 
             #ax = fig.add_subplot(2,1,2)
-            ax = fig.add_subplot(1,1,1)
-            ax.set_xlabel(msubcube.spectral_axis.unit)
-            ax.set_ylabel(msubcube.unit)
-            mask_ = msubcube.mask.include()[:, sample_pixel[0], sample_pixel[1]]
-            maskedsubcubesp = msubcube[:, sample_pixel[0], sample_pixel[1]]
-            assert np.all(np.isfinite(maskedsubcubesp[mask_]))
-            assert np.all(~np.isfinite(maskedsubcubesp[~mask_]))
-            nansp = maskedsubcubesp.filled_data[:]
-            zerosp = np.nan_to_num(nansp)
-            ax.plot(subcubesp.spectral_axis, subcubesp.value,
-                    drawstyle='steps-mid', linestyle=":", color='k',
-                    zorder=-30,
-                    label='subcube')
-            ax.plot(maskedsubcubesp.spectral_axis, nansp.value,
-                    linewidth=7, zorder=-50,
-                    drawstyle='steps-mid', color='k', alpha=0.3,
-                    label='Masked subcube')
-            ax.set_title('masked subcube at '+regionlabel)
+                ax = fig.add_subplot(1,1,1)
+                ax.set_xlabel(msubcube.spectral_axis.unit)
+                ax.set_ylabel(msubcube.unit)
+                mask_ = msubcube.mask.include()[:, spixel[0], spixel[1]]
+                maskedsubcubesp = msubcube[:, spixel[0], spixel[1]]
+                assert np.all(np.isfinite(maskedsubcubesp[mask_]))
+                assert np.all(~np.isfinite(maskedsubcubesp[~mask_]))
+                nansp = maskedsubcubesp.filled_data[:]
+                zerosp = np.nan_to_num(nansp)
+                ax.plot(subcubesp.spectral_axis, subcubesp.value,
+                        drawstyle='steps-mid', linestyle=":", color='k',
+                        zorder=-30,
+                        label='Subcube')
+                ax.plot(maskedsubcubesp.spectral_axis, nansp.value,
+                        linewidth=7, zorder=-50,
+                        drawstyle='steps-mid', color='k', alpha=0.3,
+                        label='Masked Subcube')
+                ax.set_title('Masked subcube at '+str(spixel[2]))
 
-            ax.plot(velocities[:, sample_pixel[0], sample_pixel[1]],
-                    subcubesp.value*velocity_range_mask[:, sample_pixel[0], sample_pixel[1]],
-                    color='orange',
-                    linewidth=3,
-                    zorder=-15,
-                    alpha=0.5,
-                    label='VelocityRangeMask',
-                    drawstyle='steps-mid',
-                   )
-
-
-            if apply_width_mask and 'width_mask_cube' in locals():
-                ax.plot(maskedsubcubesp.spectral_axis,
-                        subcubesp.value*width_mask_cube[:, sample_pixel[0], sample_pixel[1]],
-                        drawstyle='steps-mid', color='b', label='Width Mask',
-                        alpha=0.5, zorder=-10, linewidth=3)
-                ax.plot(maskedsubcubesp.spectral_axis,
-                        gauss_mask_cube[:, sample_pixel[0], sample_pixel[1]] * subcubesp.value.max(),
-                        color='r', zorder=-20, linewidth=1,
-                        label='Gaussian',
+                ax.plot(velocities[:, spixel[0], spixel[1]],
+                        subcubesp.value*velocity_range_mask[:, spixel[0], spixel[1]],
+                        color='orange',
+                        linewidth=3,
+                        zorder=-15,
+                        alpha=0.5,
+                        label='VelocityRangeMask',
+                        drawstyle='steps-mid',
                        )
-            if 'signal_mask' in locals():
-                ax.plot(maskedsubcubesp.spectral_axis,
-                        subcubesp.value*signal_mask[:, sample_pixel[0], sample_pixel[1]].include(),
-                        drawstyle='steps-mid', color='g', label='Signal Mask',
-                        alpha=0.5, zorder=-10, linewidth=3)
 
-            pl.legend(loc='center left', bbox_to_anchor=(1, 0.5))
 
-            if not os.path.exists('diagnostics'):
-                os.mkdir('diagnostics')
+                if apply_width_mask and 'width_mask_cube' in locals():
+                    ax.plot(maskedsubcubesp.spectral_axis,
+                            subcubesp.value*width_mask_cube[:, spixel[0], spixel[1]],
+                            drawstyle='steps-mid', color='b', label='Width Mask',
+                            alpha=0.5, zorder=-10, linewidth=3)
+                    ax.plot(maskedsubcubesp.spectral_axis,
+                            gauss_mask_cube[:, spixel[0], spixel[1]] * subcubesp.value.max(),
+                            color='r', zorder=-20, linewidth=1,
+                            label='Gaussian',
+                           )
+                if 'signal_mask' in locals():
+                    ax.plot(maskedsubcubesp.spectral_axis,
+                            subcubesp.value*signal_mask[:, spixel[0], spixel[1]].include(),
+                            drawstyle='steps-mid', color='g', label='Signal Mask',
+                            alpha=0.5, zorder=-10, linewidth=3)
 
-            fig.savefig("diagnostics/{0}_{1}_widthscale{2:0.1f}_sncut{3:0.1f}_widthcutscale{4:0.1f}_spectraldiagnostics.png"
-                        .format(target, line_name, width_map_scaling,
-                                signal_mask_limit or 999, width_cut_scaling),
-                        bbox_inches='tight')
+                pl.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+
+                if not os.path.exists('diagnostics'):
+                    os.mkdir('diagnostics')
+
+                fig.savefig("diagnostics/{0}_{1}_widthscale{2:0.1f}_sncut{3:0.1f}_widthcutscale{4:0.1f}_spectraldiagnostics_{5}.png"
+                            .format(target, line_name, width_map_scaling,
+                            signal_mask_limit or 999, width_cut_scaling, str(spixel[2])),
+                            bbox_inches='tight')
 
         # Now write output.  Note that moment0, moment1, and moment2 directories
         # must already exist...
@@ -580,11 +630,9 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             hdu = mom.hdu
             hdu.header.update(cube.beam.to_header_keywords())
             hdu.header['OBJECT'] = cube.header['OBJECT']
-            #print(noisemap.std())
             #print("noisemapbright peak = {0}".format(np.nanmax(noisemapbright)))
-            print(np.nanstd(noisemapbright))
             hdu.header['MASKLEV0'] = (np.nanstd(noisemapbright).value,'Spatial masking stdev (noisemapbright)')
-            hdu.header['MASKLEV1'] = (noisemap.std().value,'Spectral masking stdev (noisemap)')
+            hdu.header['MASKLEV1'] = (np.nanstd(noisemap).value,'Spectral masking stdev (noisemap)')
             hdu.header['MASKSCL0'] = (spatial_mask_limit,'Scale for spatial (value * noisemapbright) mask')
             hdu.header['MASKSCL1'] = (signal_mask_limit,'Scale for spectral (value * noisemap) mask')
             hdu.header['BRTLINE'] = (brightest_line_name,'Bright line name')
@@ -609,8 +657,9 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             moments[moment] = mom
 
             if sample_pixel is not None:
-                print("Moment {0} for sample pixel is {1}"
-                      .format(moment, mom[sample_pixel]))
+                for spixel in sample_pixel:
+                    print("Moment {0} for sample pixel {1} is {2}"
+                          .format(moment, str(spixel[2]), mom[spixel[0:2]]))
 
         if not os.path.exists('subcubes'):
             os.mkdir('subcubes')
@@ -755,10 +804,11 @@ def main():
     params['my_line_list'] = u.Quantity(parse_floatlist(params['my_line_list']), u.GHz)
     params['my_line_widths'] = u.Quantity(parse_floatlist(params['my_line_widths']), u.km/u.s)
     params['my_line_names'] = params['my_line_names'].split(", ")
-    if 'sample_pixel' in params:
-        params['sample_pixel'] != None
+    #if 'sample_pixel' in params:
+    #    params['sample_pixel'] != None
+    '''
 #        params['sample_pixel'] = ast.literal_eval(params['sample_pixel'])
-        # Check to make sure that sample pixel regions file exists.  Open it if
+        # Check to make sure that sample pixexl regions file exists.  Open it if
         #  it does exist, and exit script if it does not exist.
         if os.path.isfile(params['sample_pixel']):
             try:
@@ -766,36 +816,57 @@ def main():
             except AttributeError:
                 regsample = regions.Regions.read(params['sample_pixel'])
         else:
-            raise ValueError("Sample pixel {0} does not exist.".format(params['sample_pixel']))
-        #
-        # Currently can handle only one sample_pixel position, so assume regions
-        #  file includes only one region.  For future, this is where one would
-        #  read multiple sample_pixel positions.
-        cutoutcube_tmp = (SpectralCube.read(params['cutoutcube']).with_spectral_unit(u.Hz))
-        if params['cutoutcuberegion'] is not None:
-            try:
-                cutoutcube_tmp = cutoutcube_tmp.subcube_from_regions(regions.read_ds9(params['cutoutcuberegion']))
-            except AttributeError:
-                cutoutcube_tmp = cutoutcube_tmp.subcube_from_regions(regions.Regions.read(params['cutoutcuberegion']))
-        params['sample_pixel'] = (int(regsample[0].to_pixel(wcs.WCS(cutoutcube_tmp.header)).center.x), int(regsample[0].to_pixel(wcs.WCS(cutoutcube_tmp.header)).center.y))
-        # Grab region label to use for plot title later
-        regionlabel = regsample[0].meta.get('text')
-        print('Sample Pixel = ',params['sample_pixel'],'\n','Sample Pixel Type = ',type(params['sample_pixel']))
+            raise ValueError("Sample pixel file {0} does not exist.".format(params['sample_pixel']))
+    '''
 
-    print(params)
+        # NOTE: The following is necessary to provide WCS information for interpreting sample_pixel values
+        #       Try moving to later after cube is opened, avoiding multiple opens of cutoutcube...
+        # ===========
+        #print('Reading cubeoutcube again...')
+        #cutoutcube_tmp = (SpectralCube.read(params['cutoutcube']).with_spectral_unit(u.Hz))
+        #if params['cutoutcuberegion'] is not None:
+        #    try:
+        #        cutoutcube_tmp = cutoutcube_tmp.subcube_from_regions(regions.read_ds9(params['cutoutcuberegion']))
+        #    except AttributeError:
+        #        cutoutcube_tmp = cutoutcube_tmp.subcube_from_regions(regions.Regions.read(params['cutoutcuberegion']))
+
+        #sample_pixel_list = []
+        #regionlabel = []
+        #for point in regsample:
+        #    sample_pixel_list.append((int(point.to_pixel(wcs.WCS(cutoutcube_tmp.header)).center.x), int(point.to_pixel(wcs.WCS(cutoutcube_tmp.header)).center.y),point.meta.get('text')))
+        #    #regionlabel.append(point.meta.get('text'))
+        #    #print('Sample Pixel = ',params['sample_pixel'],'\n','Sample Pixel Type = ',type(params['sample_pixel']))
+        #params['sample_pixel'] = sample_pixel_list
+        ##params['sample_pixel'] = (int(regsample[0].to_pixel(wcs.WCS(cutoutcube_tmp.header)).center.x), int(regsample[0].to_pixel(wcs.WCS(cutoutcube_tmp.header)).center.y))
+        ## Grab region label to use for plot title later
+        ##regionlabel = regsample[0].meta.get('text')
+        ##print('Sample Pixel = ',params['sample_pixel'],'\n','Sample Pixel Type = ',type(params['sample_pixel']))
+        # ==========
+
+    #print(params)
 
     # Read parameters from dictionary
 
     (cube, spatialmaskcube, spatial_mask, noisemap, noisemapbright,
-     centroid_map, width_map, max_map, peak_velocity) = cubelinemoment_setup(**params)
+     centroid_map, width_map, max_map, peak_velocity, sample_pixel) = cubelinemoment_setup(**params)
 
     params.pop('cube')
+    #print('sample_pixel after params.pop(cube): ',sample_pixel)
+    params.pop('sample_pixel')
+    #print('sample_pixel after params.pop(sample_pixel): ',sample_pixel)
 
+
+#    cubelinemoment_multiline(cube=cube, spatial_mask=spatial_mask,
+#                             peak_velocity=peak_velocity,
+#                             centroid_map=centroid_map, max_map=max_map,
+#                             noisemap=noisemap, noisemapbright=noisemapbright,
+#                             width_map=width_map, regionlabel=regionlabel,
+#                             fit=False, **params)
     cubelinemoment_multiline(cube=cube, spatial_mask=spatial_mask,
                              peak_velocity=peak_velocity,
                              centroid_map=centroid_map, max_map=max_map,
                              noisemap=noisemap, noisemapbright=noisemapbright,
-                             width_map=width_map, regionlabel=regionlabel,
+                             width_map=width_map, sample_pixel=sample_pixel,
                              fit=False, **params)
 
     # params.pop('signal_mask_limit')
