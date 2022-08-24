@@ -49,14 +49,6 @@ import psutil
 proc = psutil.Process()
 
 
-
-#def cubelinemoment_setup(cube, cuberegion, cutoutcube,
-#                         cutoutcuberegion, vz, target, brightest_line_name,
-#                         brightest_line_frequency,
-#                         width_line_frequency, velocity_half_range,
-#                         noisemapbright_baseline, noisemap_baseline,
-#                         spatial_mask_limit, mask_negatives=True,
-#                         sample_pixel=None, **kwargs):
 def cubelinemoment_setup(cube, cuberegion, cutoutcube,
                          cutoutcuberegion, vz, target, brightest_line_name,
                          brightest_line_frequency,
@@ -139,7 +131,6 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
     # cut out a region that only includes the Galaxy (so we don't have to worry
     # about masking later)
     if cuberegion is not None:
-        #cube = cube.subcube_from_regions(regions.read_ds9(cuberegion))
         try:
             cube = cube.subcube_from_regions(regions.read_ds9(cuberegion))
         except AttributeError:
@@ -148,9 +139,6 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
     # --------------------------
     # Define a spatial mask that guides later calculations by defining where
     # dense gas is and is not.
-    # For the NGC253 Band 6 data use the C18O 2-1 line in spw1 for the dense
-    # gas mask for all Band 6 lines.
-    #    cutoutcube = SpectralCube.read('NGC253-H213COJ32K1-Feather-line-All.fits').with_spectral_unit(u.Hz).subcube_from_regions(regions.read_ds9('ngc253boxband6tight.reg'))
     cutoutcube = (SpectralCube.read(cutoutcube)
                   .with_spectral_unit(u.Hz)
                   )
@@ -165,6 +153,7 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
     if sample_pixel is not None:
         # Check to make sure that sample pixexl regions file exists.  Open it if
         #  it does exist, and exit script if it does not exist.
+        #  NOTE: Regions must be of type "point regions"
         if os.path.isfile(sample_pixel):
             try:
                 regsample = regions.read_ds9(sample_pixel)
@@ -192,9 +181,7 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
     # redshift velocity
     #    vz = 258.8*u.km/u.s # For NGC253
     vz = u.Quantity(vz, u.km/u.s) # For NGC253
-    #vz = 538.2*u.km/u.s # For NGC4945
 
-    #    brightest_line_frequency = 219.560358*u.GHz # C18O 2-1
     brightest_line_frequency = u.Quantity(brightest_line_frequency, u.GHz) # C18O 2-1
     #    width_line = 218.222192*u.GHz # H2CO 3(03)-2(02)
     # NOT USED width_line_frequency = u.Quantity(width_line_frequency, u.GHz) # H2CO 3(03)-2(02)
@@ -214,9 +201,9 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
     brightest_cube = cutoutVcube.spectral_slab(vz-velocity_half_range,
                                                vz+velocity_half_range)
 
-    # compute various moments & statistics along the spcetral dimension
+    # compute various moments & statistics along the spectral dimension
     peak_velocity = brightest_cube.spectral_axis[brightest_cube.argmax(axis=0)]
-    max_map = peak_amplitude = brightest_cube.max(axis=0)
+    max_map = peak_amplitude = brightest_cube.max(axis=0) # This sometimes contains an all-NaN slice
     width_map = brightest_cube.linewidth_sigma() # or vcube.moment2(axis=0)**0.5
     centroid_map = brightest_cube.moment1(axis=0)
 
@@ -239,7 +226,6 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
     #hdu.writeto("moment0/{0}_SQRTMOM2Map.fits".format(target),overwrite=True)
 
 
-    # From NGC253 H213COJ32K1 spectral baseline
     inds = np.arange(noisecubebright.shape[0])
     mask = np.zeros_like(inds, dtype='bool')
     baselinemask = mask.copy()
@@ -283,11 +269,6 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
     # Now process spw of interest...
     #
     # Now define noise map for spw being analyzed...
-    # From NGC253 H2COJ32K02 spectral baseline
-    #noisemap = cube[360:370,:,:].std(axis=0)
-    # ADAM ADDED: Derive noisemap over non-contiguous baseline
-    # JGM: Had to go back to defining noisemap_baseline in function as param input of list does not seem to work
-    #noisemap_baseline = [(9, 14), (40, 42), (72, 74), (114, 122), (138, 143), (245, 254), (342, 364)]
     inds = np.arange(cube.shape[0])
     mask = np.zeros_like(inds, dtype='bool')
     for low,high in noisemap_baseline:
@@ -367,16 +348,6 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
 
 
 
-#def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
-#                             noisemap, noisemapbright, signal_mask_limit,
-#                             spatial_mask_limit,
-#                             brightest_line_name, brightest_line_frequency,
-#                             my_line_list, my_line_widths, my_line_names,
-#                             target, spatial_mask, width_map, regionlabel,
-#                             width_map_scaling=1.0, width_cut_scaling=1.0,
-#                             fit=False, apply_width_mask=True,
-#                             sample_pixel=None,
-#                             **kwargs):
 def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
                              noisemap, noisemapbright, signal_mask_limit,
                              spatial_mask_limit,
@@ -448,7 +419,7 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
         if apply_width_mask:
             # ADAM'S ADDITIONS AGAIN
             # use the spectral_axis to make a 'mask cube' with the moment1/moment2
-            # values computed for the selected mask line (H2CO 303?)
+            # values computed for the selected mask line
             # We create a Gaussian along each line-of-sight, then we'll crop based on a
             # threshold
             # The [:,:,None] and [None,None,:] allow arrays of shape [x,y,0] and
@@ -477,7 +448,7 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             if sample_pixel:
                 for spixel in sample_pixel:
                     #print('Sample Pixel = ',spixel,'\n','Sample Pixel Type = ',type(spixel))
-                    print('Sample Pixel = ',spixel[0:2])
+                    print('Sample Pixel = ',spixel[0:3])
                     print("SP Threshold: {0}".format(threshold[spixel[0:2]]))
                     print("SP S, N, S/N: {0}, {1}, {2}"
                           .format(max_map[spixel[0:2]],
@@ -851,17 +822,9 @@ def main():
      centroid_map, width_map, max_map, peak_velocity, sample_pixel) = cubelinemoment_setup(**params)
 
     params.pop('cube')
-    #print('sample_pixel after params.pop(cube): ',sample_pixel)
     params.pop('sample_pixel')
-    #print('sample_pixel after params.pop(sample_pixel): ',sample_pixel)
 
 
-#    cubelinemoment_multiline(cube=cube, spatial_mask=spatial_mask,
-#                             peak_velocity=peak_velocity,
-#                             centroid_map=centroid_map, max_map=max_map,
-#                             noisemap=noisemap, noisemapbright=noisemapbright,
-#                             width_map=width_map, regionlabel=regionlabel,
-#                             fit=False, **params)
     cubelinemoment_multiline(cube=cube, spatial_mask=spatial_mask,
                              peak_velocity=peak_velocity,
                              centroid_map=centroid_map, max_map=max_map,
