@@ -114,7 +114,7 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
         Mask out negatives below N-sigma negative.
     sample_pixel : str, optional
         A list of (x,y) coordinate pairs to sample from the cutout cube to create
-        diagnostic images.  Assumed to be in a regions file, and must be 
+        diagnostic images.  Assumed to be in a regions file, and must be
         within the cutout image area.  Can contain one or more sample positions.
         If left as `None`, no diagnostic images will be made.
 
@@ -174,6 +174,7 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
     #print('Sample Pixel List: ',sample_pixel_list)
 
     if mask_negatives is not False:
+        log.debug(f"Masking negatives.  mask_negatives={mask_negatives}")
         std = cube.std()
         posmask = cutoutcube > (std * mask_negatives)
         cutoutcube = cutoutcube.with_mask(posmask)
@@ -200,12 +201,19 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
     # from a slab including +/- width:
     brightest_cube = cutoutVcube.spectral_slab(vz-velocity_half_range,
                                                vz+velocity_half_range)
+    #log.debug(f"Brightest_cube = {brightest_cube}, mask_in={brightest_cube.mask.include().sum()}, mask_out={brightest_cube.mask.exclude().sum()}")
 
     # compute various moments & statistics along the spectral dimension
     peak_velocity = brightest_cube.spectral_axis[brightest_cube.argmax(axis=0)]
     max_map = peak_amplitude = brightest_cube.max(axis=0) # This sometimes contains an all-NaN slice
     width_map = brightest_cube.linewidth_sigma() # or vcube.moment2(axis=0)**0.5
     centroid_map = brightest_cube.moment1(axis=0)
+    #log.debug(f"Centroid map has {np.isfinite(centroid_map).sum()} finite pixels and {(~np.isfinite(centroid_map)).sum()} non-finite")
+    #log.debug(f"width map has {np.isfinite(width_map).sum()} finite pixels and {(~np.isfinite(width_map)).sum()} non-finite")
+
+    bad_centroids = (centroid_map < vz - velocity_half_range) | (centroid_map > vz + velocity_half_range)
+    #log.debug(f"Centroid map has {bad_centroids.sum()} bad centroids")
+    centroid_map[bad_centroids] = vz
 
     if not os.path.exists('moment0'):
         os.mkdir('moment0')
@@ -236,7 +244,7 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
             mask[low:high] = True
         else:
             raise ValueError("noisemapbright_baseline ({0},{1}) out of range ({2},{3})".format(low,high,0,noisecubebright.header['NAXIS3']))
-        
+
     # need to use an unmasked cube
     noisemapbright = noisecubebright.with_mask(mask[:,None,None]).std(axis=0)
     print("noisemapbright peak = {0}".format(np.nanmax(noisemapbright)))
@@ -245,7 +253,7 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
     brightbaseline_mask = np.zeros_like(inds, dtype='bool')
     for lo, hi in noisemapbright_baseline:
         brightbaseline_mask[lo:hi] = True
-    
+
     # Make a plot of the noise map...
     #pl.figure(2).clf()
     #pl.imshow(noisemapbright.value)
@@ -257,9 +265,11 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
     #
     # Use 3*noisemap for spatial masking
     if spatial_mask_limit is None:
+        log.debug("Spatial mask limit disabled")
         spatial_mask = np.ones(noisemapbright.shape, dtype='bool')
     else:
         spatial_mask = np.fabs(peak_amplitude) > spatial_mask_limit*noisemapbright
+        log.debug(f"Spatial mask limit results in {spatial_mask.sum()} masked out pixels")
     #hdu = spatial_mask.hdu
     #hdu.header.update(cutoutcube.beam.to_header_keywords())
     #hdu.header['OBJECT'] = cutoutcube.header['OBJECT']
@@ -355,6 +365,7 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
                              my_line_list, my_line_widths, my_line_names,
                              target, spatial_mask, width_map, sample_pixel,
                              width_map_scaling=1.0, width_cut_scaling=1.0,
+                             use_default_width=False,
                              fit=False, apply_width_mask=True,
                              **kwargs):
     """
@@ -384,6 +395,10 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
     width_cut_scaling : float
         The factor by which the cube cutout is expanded, so if this is != 1,
         the extracted subcube will be larger.
+    use_default_width : bool
+        If the width cannot be determined (moment2 is negative, for example),
+        use the `my_line_widths` estimate in place of any pixels with NaN
+        widths
     apply_width_mask : bool
         Should width masking be applied at all?  Turning this off can save some
         computational time.
@@ -399,6 +414,10 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
         raise ValueError("Line lists (central frequency, names, and widths) "
                          "have different lengths")
 
+    if use_default_width:
+        bad_widths = np.isnan(width_map)
+    if np.any(width_map <= 0):
+        raise ValueError("Negative or zero width found in width map")
 
     # Now loop over EACH line, extracting moments etc. from the appropriate region:
     # we'll also apply a transition-dependent width (my_line_widths) here because
@@ -429,6 +448,8 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             #print('Width Map: ',width_map)
             #print('max(Width Map)',np.nanmax(width_map))
             #print('Width Map Scaling: ',width_map_scaling)
+            if use_default_width:
+                width_map[bad_widths] = line_width
             # NOTE: Following line sometimes produces image with NaNs at some positions.  Should try to fix...
             gauss_mask_cube = np.exp(-(np.array(centroid_map)[None,:,:] -
                                        np.array(subcube.spectral_axis)[:,None,None])**2 /
@@ -463,6 +484,8 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             print("Number of values above threshold: {0}".format(width_mask_cube.sum()))
             print("Max value in the mask cube: {0}".format(np.nanmax(gauss_mask_cube)))
             print("shapes: mask cube={0}  threshold: {1}".format(gauss_mask_cube.shape, threshold.shape))
+            # DEBUG print(f"{(gauss_mask_cube.sum(axis=0) == 0).sum()} spatial pixels still masked out")
+            # DEBUG print(f"{(width_mask_cube.sum(axis=0) == 0).sum()} spatial pixels still masked out (width)")
 
             msubcube = subcube.with_mask(width_mask_cube)
         else:
@@ -472,6 +495,7 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
         # Mask on a pixel-by-pixel basis with an N-sigma cut
         if signal_mask_limit is not None:
             signal_mask = subcube > signal_mask_limit*noisemap
+            # log.debug(f"signal mask results in {signal_mask.sum()} included pixels")
             msubcube = msubcube.with_mask(signal_mask)
 
 
@@ -488,6 +512,7 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
         # (signal_mask is a different type, so it can't be combined with the others
         # yet - I'll add a feature request for that)
         msubcube = msubcube.with_mask(velocity_range_mask & spatial_mask)
+        log.debug(f"spatial_mask.sum() = {spatial_mask.sum()}, inverse:{(~spatial_mask).sum()}")
 
         # DEBUG: show the values from all the masks
         pl.figure(10).clf()

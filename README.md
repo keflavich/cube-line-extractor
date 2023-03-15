@@ -19,7 +19,7 @@ run CubeLineMoment.py yaml_scripts/CubeLineMomentInput.yaml
 
  - `cuberegion` [string]: ds9 region file used to spatial mask for input FITS
    `cube` emission region.
-   Example: regions/NGC253BoxBand6H2COJ32K02.reg
+   Example: regions_folder/NGC253BoxBand6H2COJ32K02.reg
 
  - `cutoutcube` [string]: Input FITS cube which contains "tracer"
    transition which is strong and representative of dense gas emission
@@ -29,7 +29,7 @@ run CubeLineMoment.py yaml_scripts/CubeLineMomentInput.yaml
 
  - `cutoutcuberegion` [string]: ds9 region file used to spatial
    mask input FITS "tracer" transition (`spatialmaskcube`).
-   Example: regions/NGC253BoxBand6H2COJ32K02.reg
+   Example: regions_folder/NGC253BoxBand6H2COJ32K02.reg
 
  - `vz` [float:km/s]: Target central velocity.  In order to maximize the
    effectiveness of the spectral lines extracted from your image cube,
