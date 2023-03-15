@@ -474,8 +474,8 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
 
         subcube = vcube.spectral_slab(velocity_map.min()-line_width,
                                       velocity_map.max()+line_width)
-        log.debug(f"subcube spatial includes before width mask: {subcube.mask.include().max(axis=0).sum()} excludes: {subcube.mask.exclude().max(axis=0).sum()}")
-        log.debug(f"subcube mask exclude sum: {subcube.mask.exclude().sum()}")
+        #log.debug(f"subcube spatial includes before width mask: {subcube.mask.include().max(axis=0).sum()} excludes: {subcube.mask.exclude().max(axis=0).sum()}")
+        #log.debug(f"subcube mask exclude sum: {subcube.mask.exclude().sum()}")
 
         if apply_width_mask:
             # ADAM'S ADDITIONS AGAIN
@@ -505,7 +505,7 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             # (this can be modified as you see fit)
             threshold = 1 / peak_sn
             if min_gauss_threshold is not None:
-                log.debug(f"There are {(threshold < min_gauss_threshold).sum()} thresholds < {min_gauss_threshold}")
+                #log.debug(f"There are {(threshold < min_gauss_threshold).sum()} thresholds < {min_gauss_threshold}")
                 threshold[threshold < min_gauss_threshold] = min_gauss_threshold
 
             print("Highest Threshold: {0}".format(np.nanmax(threshold)))
@@ -539,13 +539,13 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             msubcube = subcube
 
 
-        log.debug(f"msubcube spatial includes before signal mask: {msubcube.mask.include().max(axis=0).sum()} excludes: {msubcube.mask.exclude().max(axis=0).sum()} full excludes: {(msubcube.mask.exclude().max(axis=0)==0).sum()}")
+        #log.debug(f"msubcube spatial includes before signal mask: {msubcube.mask.include().max(axis=0).sum()} excludes: {msubcube.mask.exclude().max(axis=0).sum()} full excludes: {(msubcube.mask.exclude().max(axis=0)==0).sum()}")
         # Mask on a pixel-by-pixel basis with an N-sigma cut
         if signal_mask_limit is not None:
             signal_mask = subcube > signal_mask_limit*noisemap
             # log.debug(f"signal mask results in {signal_mask.sum()} included pixels")
             msubcube = msubcube.with_mask(signal_mask)
-        log.debug(f"msubcube spatial includes after signal mask: {msubcube.mask.include().max(axis=0).sum()} excludes: {msubcube.mask.exclude().max(axis=0).sum()} full excludes: {(msubcube.mask.exclude().max(axis=0)==0).sum()}")
+        #log.debug(f"msubcube spatial includes after signal mask: {msubcube.mask.include().max(axis=0).sum()} excludes: {msubcube.mask.exclude().max(axis=0).sum()} full excludes: {(msubcube.mask.exclude().max(axis=0)==0).sum()}")
 
         if apply_width_mask:
             spatially_masked_pixels = (width_mask_cube.max(axis=0) == 0)
@@ -566,7 +566,7 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
         # (signal_mask is a different type, so it can't be combined with the others
         # yet - I'll add a feature request for that)
         msubcube = msubcube.with_mask(velocity_range_mask & spatial_mask)
-        log.debug(f"spatial_mask.sum() = {spatial_mask.sum()}, inverse:{(~spatial_mask).sum()}")
+        #log.debug(f"spatial_mask.sum() = {spatial_mask.sum()}, inverse:{(~spatial_mask).sum()}")
 
         # DEBUG: show the values from all the masks
         pl.figure(10).clf()
@@ -677,8 +677,8 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
                 mom = msubcube.linewidth_fwhm()
             else:
                 mom = msubcube.moment(order=moment, axis=0)
-                log.debug(f"mom has {(~np.isfinite(mom)).sum()} nans")
-            log.debug(f"msubcube includes: {msubcube.mask.include().max(axis=0).sum()} excludes: {(msubcube.mask.include().max(axis=0) == 0).sum()}")
+                #log.debug(f"mom has {(~np.isfinite(mom)).sum()} nans")
+            #log.debug(f"msubcube includes: {msubcube.mask.include().max(axis=0).sum()} excludes: {(msubcube.mask.include().max(axis=0) == 0).sum()}")
             hdu = mom.hdu
             hdu.header.update(cube.beam.to_header_keywords())
             hdu.header['OBJECT'] = cube.header['OBJECT']
