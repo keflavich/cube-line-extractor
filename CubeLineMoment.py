@@ -454,6 +454,11 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
         else:
             warnings.warn(f"Found minimum width in width_map {np.nanmin(width_map)}.")
 
+    if use_peak_for_velcut:
+        velocity_map = peak_velocity
+    else:
+        velocity_map = centroid_map
+
     # Now loop over EACH line, extracting moments etc. from the appropriate region:
     # we'll also apply a transition-dependent width (my_line_widths) here because
     # these fainter lines do not have peaks as far out as the bright line.
@@ -467,8 +472,8 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
         vcube = cube.with_spectral_unit(u.km/u.s, rest_value=line_freq,
                                         velocity_convention='optical')
 
-        subcube = vcube.spectral_slab(peak_velocity.min()-line_width,
-                                      peak_velocity.max()+line_width)
+        subcube = vcube.spectral_slab(velocity_map.min()-line_width,
+                                      velocity_map.max()+line_width)
         log.debug(f"subcube spatial includes before width mask: {subcube.mask.include().max(axis=0).sum()} excludes: {subcube.mask.exclude().max(axis=0).sum()}")
         log.debug(f"subcube mask exclude sum: {subcube.mask.exclude().sum()}")
 
@@ -480,7 +485,7 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             # threshold
             # The [:,:,None] and [None,None,:] allow arrays of shape [x,y,0] and
             # [0,0,z] to be "broadcast" together
-            assert centroid_map.unit.is_equivalent(u.km/u.s)
+            assert velocity_map.unit.is_equivalent(u.km/u.s)
             # DEBUG
             #print('Width Map: ',width_map)
             #print('max(Width Map)',np.nanmax(width_map))
@@ -488,7 +493,7 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             if use_default_width:
                 width_map[bad_widths] = line_width
             # NOTE: Following line sometimes produces image with NaNs at some positions.  Should try to fix...
-            gauss_mask_cube = np.exp(-(np.array(centroid_map)[None,:,:] -
+            gauss_mask_cube = np.exp(-(np.array(velocity_map)[None,:,:] -
                                        np.array(subcube.spectral_axis)[:,None,None])**2 /
                                      (2*np.array(width_map*width_map_scaling)[None,:,:]**2))
             peak_sn = max_map / noisemap
@@ -555,10 +560,7 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
         # now we use the velocities from the brightest line to create a mask region
         # in the same velocity range but with different rest frequencies (different
         # lines)
-        if use_peak_for_velcut:
-            velocity_range_mask = np.abs(peak_velocity - velocities) < line_width
-        else:
-            velocity_range_mask = np.abs(centroid_map - velocities) < line_width
+        velocity_range_mask = np.abs(velocity_map - velocities) < line_width
         # the mask is a cube, the spatial mask is a 2d array, but in this case
         # numpy knows how to combine them properly
         # (signal_mask is a different type, so it can't be combined with the others
