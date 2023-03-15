@@ -55,6 +55,7 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
                          width_line_frequency, velocity_half_range,
                          noisemapbright_baseline, noisemap_baseline,
                          spatial_mask_limit, sample_pixel,
+                         min_width=None,
                          mask_negatives=True, **kwargs):
     """
     For a given cube file, read it and compute the moments (0,1,2) for a
@@ -117,6 +118,9 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
         diagnostic images.  Assumed to be in a regions file, and must be
         within the cutout image area.  Can contain one or more sample positions.
         If left as `None`, no diagnostic images will be made.
+    min_width : velocity
+        The minimum velocity to allow in the velocity map.  It's a good idea to
+        set this at least to the channel width.
 
 
     Returns
@@ -214,6 +218,12 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
     bad_centroids = (centroid_map < vz - velocity_half_range) | (centroid_map > vz + velocity_half_range)
     #log.debug(f"Centroid map has {bad_centroids.sum()} bad centroids")
     centroid_map[bad_centroids] = vz
+
+    if min_width:
+        min_width = u.Quantity(min_width, u.km/u.s)
+        bad_widths = width_map < min_width
+        log.debug(f"Resetting {bad_widths.sum()} widths to {min_width}")
+        width_map[bad_widths] = min_width
 
     if not os.path.exists('moment0'):
         os.mkdir('moment0')
