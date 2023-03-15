@@ -219,6 +219,10 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
     #log.debug(f"Centroid map has {bad_centroids.sum()} bad centroids")
     centroid_map[bad_centroids] = vz
 
+    bad_peaks = (peak_velocity < vz - velocity_half_range) | (peak_velocity > vz + velocity_half_range)
+    #log.debug(f"peak map has {bad_peaks.sum()} bad peaks")
+    peak_velocity[bad_peaks] = vz
+
     if min_width:
         min_width = u.Quantity(min_width, u.km/u.s)
         bad_widths = width_map < min_width
@@ -277,9 +281,14 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
     if spatial_mask_limit is None:
         log.debug("Spatial mask limit disabled")
         spatial_mask = np.ones(noisemapbright.shape, dtype='bool')
+
+        # anything with a peak <1-sigma - set to central v
+        peak_velocity[np.fabs(peak_amplitude) < noisemapbright] = vz
     else:
         spatial_mask = np.fabs(peak_amplitude) > spatial_mask_limit*noisemapbright
+        peak_velocity[spatial_mask] = vz
         log.debug(f"Spatial mask limit results in {spatial_mask.sum()} masked out pixels")
+
     #hdu = spatial_mask.hdu
     #hdu.header.update(cutoutcube.beam.to_header_keywords())
     #hdu.header['OBJECT'] = cutoutcube.header['OBJECT']
@@ -378,6 +387,8 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
                              use_default_width=False,
                              fit=False, apply_width_mask=True,
                              min_width=None,
+                             min_gauss_threshold=None,
+                             use_peak_for_velcut=False,
                              **kwargs):
     """
     Given the appropriate setup, extract moment maps for each of the specified
@@ -415,6 +426,14 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
         computational time.
     min_width : velocity
         Minimum width to allow in width map
+    min_gauss_threshold : float
+        The minimum threshold to allow in creating the Gaussian-based threshold
+        mask.  Default is no minimum
+    use_peak_for_velcut : bool
+        Use the peak velocity to perform the +/- dV velocity cut?  Defaults to
+        False, in which case the centroid is used instead.  The centroid is
+        likely more robust, but there are some cases where you might prefer the
+        peak.
 
     Returns
     -------
@@ -450,6 +469,8 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
 
         subcube = vcube.spectral_slab(peak_velocity.min()-line_width,
                                       peak_velocity.max()+line_width)
+        log.debug(f"subcube spatial includes before width mask: {subcube.mask.include().max(axis=0).sum()} excludes: {subcube.mask.exclude().max(axis=0).sum()}")
+        log.debug(f"subcube mask exclude sum: {subcube.mask.exclude().sum()}")
 
         if apply_width_mask:
             # ADAM'S ADDITIONS AGAIN
@@ -478,9 +499,13 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             # i.e., if the S/N=6, then the threshold will be 6-sigma
             # (this can be modified as you see fit)
             threshold = 1 / peak_sn
+            if min_gauss_threshold is not None:
+                log.debug(f"There are {(threshold < min_gauss_threshold).sum()} thresholds < {min_gauss_threshold}")
+                threshold[threshold < min_gauss_threshold] = min_gauss_threshold
 
             print("Highest Threshold: {0}".format(np.nanmax(threshold)))
-            #print("Lowest Threshold: {0}".format((threshold[threshold>0].min())))
+            print("Lowest Positive Threshold: {0}".format((threshold[threshold>0].min())))
+            print("Lowest Threshold: {0}".format((threshold.min())))
             #print('Sample Pixel Inside cubelinemoment_multiline: ',sample_pixel)
             if sample_pixel:
                 for spixel in sample_pixel:
@@ -498,6 +523,7 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             # pixel-by-pixel basis
             width_mask_cube = gauss_mask_cube > threshold
             print("Number of values above threshold: {0}".format(width_mask_cube.sum()))
+            print(f"Number of spatial pixels excluded: {(width_mask_cube.max(axis=0) == 0).sum()}")
             print("Max value in the mask cube: {0}".format(np.nanmax(gauss_mask_cube)))
             print("shapes: mask cube={0}  threshold: {1}".format(gauss_mask_cube.shape, threshold.shape))
             # DEBUG print(f"{(gauss_mask_cube.sum(axis=0) == 0).sum()} spatial pixels still masked out")
@@ -508,12 +534,19 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             msubcube = subcube
 
 
+        log.debug(f"msubcube spatial includes before signal mask: {msubcube.mask.include().max(axis=0).sum()} excludes: {msubcube.mask.exclude().max(axis=0).sum()} full excludes: {(msubcube.mask.exclude().max(axis=0)==0).sum()}")
         # Mask on a pixel-by-pixel basis with an N-sigma cut
         if signal_mask_limit is not None:
             signal_mask = subcube > signal_mask_limit*noisemap
             # log.debug(f"signal mask results in {signal_mask.sum()} included pixels")
             msubcube = msubcube.with_mask(signal_mask)
+        log.debug(f"msubcube spatial includes after signal mask: {msubcube.mask.include().max(axis=0).sum()} excludes: {msubcube.mask.exclude().max(axis=0).sum()} full excludes: {(msubcube.mask.exclude().max(axis=0)==0).sum()}")
 
+        if apply_width_mask:
+            spatially_masked_pixels = (width_mask_cube.max(axis=0) == 0)
+            spatially_masked_pixels2 = msubcube.mask.include().max(axis=0) == 0
+            assert np.all(spatially_masked_pixels == spatially_masked_pixels2)
+            assert spatially_masked_pixels.sum() == spatially_masked_pixels2.sum()
 
         # this part makes a cube of velocities
         temp = subcube.spectral_axis
@@ -522,7 +555,10 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
         # now we use the velocities from the brightest line to create a mask region
         # in the same velocity range but with different rest frequencies (different
         # lines)
-        velocity_range_mask = np.abs(peak_velocity - velocities) < line_width
+        if use_peak_for_velcut:
+            velocity_range_mask = np.abs(peak_velocity - velocities) < line_width
+        else:
+            velocity_range_mask = np.abs(centroid_map - velocities) < line_width
         # the mask is a cube, the spatial mask is a 2d array, but in this case
         # numpy knows how to combine them properly
         # (signal_mask is a different type, so it can't be combined with the others
@@ -639,6 +675,8 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
                 mom = msubcube.linewidth_fwhm()
             else:
                 mom = msubcube.moment(order=moment, axis=0)
+                log.debug(f"mom has {(~np.isfinite(mom)).sum()} nans")
+            log.debug(f"msubcube includes: {msubcube.mask.include().max(axis=0).sum()} excludes: {(msubcube.mask.include().max(axis=0) == 0).sum()}")
             hdu = mom.hdu
             hdu.header.update(cube.beam.to_header_keywords())
             hdu.header['OBJECT'] = cube.header['OBJECT']
