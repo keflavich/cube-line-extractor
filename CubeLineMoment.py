@@ -377,6 +377,7 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
                              width_map_scaling=1.0, width_cut_scaling=1.0,
                              use_default_width=False,
                              fit=False, apply_width_mask=True,
+                             min_width=None,
                              **kwargs):
     """
     Given the appropriate setup, extract moment maps for each of the specified
@@ -412,6 +413,8 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
     apply_width_mask : bool
         Should width masking be applied at all?  Turning this off can save some
         computational time.
+    min_width : velocity
+        Minimum width to allow in width map
 
     Returns
     -------
@@ -427,7 +430,10 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
     if use_default_width:
         bad_widths = np.isnan(width_map)
     if np.any(width_map <= 0):
-        raise ValueError("Negative or zero width found in width map")
+        if min_width:
+            raise ValueError("Negative or zero width found in width map")
+        else:
+            warnings.warn(f"Found minimum width in width_map {np.nanmin(width_map)}.")
 
     # Now loop over EACH line, extracting moments etc. from the appropriate region:
     # we'll also apply a transition-dependent width (my_line_widths) here because
