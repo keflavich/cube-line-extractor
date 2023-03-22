@@ -26,6 +26,7 @@ import os
 import numpy as np
 from spectral_cube import SpectralCube
 from astropy import units as u
+from astropy.io import fits
 from astropy import constants
 import regions
 import pylab as pl
@@ -389,6 +390,7 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
                              min_width=None,
                              min_gauss_threshold=None,
                              use_peak_for_velcut=False,
+                             debug=False,
                              **kwargs):
     """
     Given the appropriate setup, extract moment maps for each of the specified
@@ -472,10 +474,17 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
         vcube = cube.with_spectral_unit(u.km/u.s, rest_value=line_freq,
                                         velocity_convention='optical')
 
-        subcube = vcube.spectral_slab(velocity_map.min()-line_width,
-                                      velocity_map.max()+line_width)
-        #log.debug(f"subcube spatial includes before width mask: {subcube.mask.include().max(axis=0).sum()} excludes: {subcube.mask.exclude().max(axis=0).sum()}")
-        #log.debug(f"subcube mask exclude sum: {subcube.mask.exclude().sum()}")
+        subcube = vcube.spectral_slab(np.nanmin(velocity_map)-line_width,
+                                      np.nanmax(velocity_map)+line_width)
+        if subcube.shape[0] == 1:
+            raise ValueError("Cube has been reduced to a single spectral channel."
+                             "  Check rest frequency etc."
+                            f"restfreq={line_freq}, line_width={line_width}, velocity_map"
+                            f" range={np.nanmin(velocity_map)}:{np.nanmax(velocity_map)}")
+        if debug:
+            log.debug(str(subcube))
+            log.debug(f"subcube spatial includes before width mask: {subcube.mask.include().max(axis=0).sum()} excludes: {subcube.mask.exclude().max(axis=0).sum()}")
+            log.debug(f"subcube mask exclude sum: {subcube.mask.exclude().sum()}")
 
         if apply_width_mask:
             # ADAM'S ADDITIONS AGAIN
@@ -498,6 +507,12 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
                                      (2*np.array(width_map*width_map_scaling)[None,:,:]**2))
             peak_sn = max_map / noisemap
 
+            # BACKUP debug
+            # if debug:
+            #     fits.PrimaryHDU(data=gauss_mask_cube,
+            #                    header=cube.header).writeto('GaussMaskCube.fits',
+            #                                                overwrite=True)
+
             print("Peak S/N: {0}".format(np.nanmax(peak_sn)))
 
             # threshold at the fraction of the Gaussian corresponding to our peak s/n.
@@ -505,12 +520,13 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             # (this can be modified as you see fit)
             threshold = 1 / peak_sn
             if min_gauss_threshold is not None:
-                #log.debug(f"There are {(threshold < min_gauss_threshold).sum()} thresholds < {min_gauss_threshold}")
+                if debug:
+                    log.debug(f"There are {(threshold < min_gauss_threshold).sum()} thresholds < {min_gauss_threshold}")
                 threshold[threshold < min_gauss_threshold] = min_gauss_threshold
 
             print("Highest Threshold: {0}".format(np.nanmax(threshold)))
             print("Lowest Positive Threshold: {0}".format((threshold[threshold>0].min())))
-            print("Lowest Threshold: {0}".format((threshold.min())))
+            print("Lowest Threshold: {0}".format(np.nanmin(threshold)))
             #print('Sample Pixel Inside cubelinemoment_multiline: ',sample_pixel)
             if sample_pixel:
                 for spixel in sample_pixel:
@@ -531,19 +547,24 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             print(f"Number of spatial pixels excluded: {(width_mask_cube.max(axis=0) == 0).sum()}")
             print("Max value in the mask cube: {0}".format(np.nanmax(gauss_mask_cube)))
             print("shapes: mask cube={0}  threshold: {1}".format(gauss_mask_cube.shape, threshold.shape))
-            # DEBUG print(f"{(gauss_mask_cube.sum(axis=0) == 0).sum()} spatial pixels still masked out")
-            # DEBUG print(f"{(width_mask_cube.sum(axis=0) == 0).sum()} spatial pixels still masked out (width)")
+            if debug:
+                print(f"{(gauss_mask_cube.sum(axis=0) == 0).sum()} spatial pixels still masked out")
+                print(f"{(width_mask_cube.sum(axis=0) == 0).sum()} spatial pixels still masked out (width)")
+                print(f"{(gauss_mask_cube.sum(axis=0) > 0).sum()} spatial pixels included")
+                print(f"{(width_mask_cube.sum(axis=0) > 0).sum()} spatial pixels included (width)")
 
             msubcube = subcube.with_mask(width_mask_cube)
         else:
             msubcube = subcube
 
 
-        #log.debug(f"msubcube spatial includes before signal mask: {msubcube.mask.include().max(axis=0).sum()} excludes: {msubcube.mask.exclude().max(axis=0).sum()} full excludes: {(msubcube.mask.exclude().max(axis=0)==0).sum()}")
+        if debug:
+            log.debug(f"msubcube spatial includes before signal mask: {msubcube.mask.include().max(axis=0).sum()} excludes: {msubcube.mask.exclude().max(axis=0).sum()} full excludes: {(msubcube.mask.exclude().max(axis=0)==0).sum()}")
         # Mask on a pixel-by-pixel basis with an N-sigma cut
         if signal_mask_limit is not None:
             signal_mask = subcube > signal_mask_limit*noisemap
-            # log.debug(f"signal mask results in {signal_mask.sum()} included pixels")
+            if debug:
+                log.debug(f"signal mask results in {signal_mask.sum()} included pixels")
             msubcube = msubcube.with_mask(signal_mask)
         #log.debug(f"msubcube spatial includes after signal mask: {msubcube.mask.include().max(axis=0).sum()} excludes: {msubcube.mask.exclude().max(axis=0).sum()} full excludes: {(msubcube.mask.exclude().max(axis=0)==0).sum()}")
 
