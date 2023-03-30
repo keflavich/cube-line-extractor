@@ -544,14 +544,15 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             # pixel-by-pixel basis
             width_mask_cube = gauss_mask_cube > threshold
             print("Number of values above threshold: {0}".format(width_mask_cube.sum()))
-            print(f"Number of spatial pixels excluded: {(width_mask_cube.max(axis=0) == 0).sum()}")
-            print("Max value in the mask cube: {0}".format(np.nanmax(gauss_mask_cube)))
+            print(f"Number of spatial pixels excluded: {(width_mask_cube.max(axis=0) == 0).sum()} out  of {np.prod(width_mask_cube.shape[1:])}")
+            print("Min, Max value in the mask cube: {0},{1}".format(np.nanmin(gauss_mask_cube), np.nanmax(gauss_mask_cube)))
             print("shapes: mask cube={0}  threshold: {1}".format(gauss_mask_cube.shape, threshold.shape))
             if debug:
                 print(f"{(gauss_mask_cube.sum(axis=0) == 0).sum()} spatial pixels still masked out")
                 print(f"{(width_mask_cube.sum(axis=0) == 0).sum()} spatial pixels still masked out (width)")
                 print(f"{(gauss_mask_cube.sum(axis=0) > 0).sum()} spatial pixels included")
                 print(f"{(width_mask_cube.sum(axis=0) > 0).sum()} spatial pixels included (width)")
+                print(f"subcube has {(subcube.mask.include().max(axis=0) == 0).sum()} spatially masked pixels")
 
             msubcube = subcube.with_mask(width_mask_cube)
         else:
@@ -569,10 +570,10 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
         #log.debug(f"msubcube spatial includes after signal mask: {msubcube.mask.include().max(axis=0).sum()} excludes: {msubcube.mask.exclude().max(axis=0).sum()} full excludes: {(msubcube.mask.exclude().max(axis=0)==0).sum()}")
 
         if apply_width_mask:
-            spatially_masked_pixels = (width_mask_cube.max(axis=0) == 0)
-            spatially_masked_pixels2 = msubcube.mask.include().max(axis=0) == 0
-            assert np.all(spatially_masked_pixels == spatially_masked_pixels2)
-            assert spatially_masked_pixels.sum() == spatially_masked_pixels2.sum()
+            spatially_masked_pixels = ~((subcube.mask.include() & width_mask_cube).any(axis=0))
+            spatially_masked_pixels2 = ~msubcube.mask.include().any(axis=0)
+            assert np.all(spatially_masked_pixels == (spatially_masked_pixels2)), f"{(spatially_masked_pixels).sum()} != {(spatially_masked_pixels2).sum()}"
+            assert (spatially_masked_pixels).sum() == (spatially_masked_pixels2).sum()
 
         # this part makes a cube of velocities
         temp = subcube.spectral_axis
