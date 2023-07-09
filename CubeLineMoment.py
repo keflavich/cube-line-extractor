@@ -154,6 +154,8 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
             cutoutcube = cutoutcube.subcube_from_regions(regions.Regions.read(cutoutcuberegion))
     noisecubebright = cutoutcube
 
+    initial_spatial_mask = cutoutcube.mask.include().any(axis=0)
+
     # MOVED SAMPLE_PIXEL INTERPRETATION HERE...
     if sample_pixel is not None:
         # Check to make sure that sample pixexl regions file exists.  Open it if
@@ -288,7 +290,10 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
     else:
         spatial_mask = np.fabs(peak_amplitude) > spatial_mask_limit*noisemapbright
         peak_velocity[spatial_mask] = vz
-        log.debug(f"Spatial mask limit results in {spatial_mask.sum()} masked out pixels")
+        log.warning(f"Spatial mask limit results in {spatial_mask.sum()} masked out pixels")
+
+    if (np.isfinite(peak_velocity) & initial_spatial_mask).sum() != initial_spatial_mask.sum():
+        raise ValueError("There is a disagreement between peak vel and spatial mask")
 
     #hdu = spatial_mask.hdu
     #hdu.header.update(cutoutcube.beam.to_header_keywords())
@@ -389,6 +394,7 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
                              fit=False, apply_width_mask=True,
                              min_width=None,
                              min_gauss_threshold=None,
+                             max_gauss_threshold=None,
                              use_peak_for_velcut=False,
                              debug=False,
                              **kwargs):
@@ -431,6 +437,10 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
     min_gauss_threshold : float
         The minimum threshold to allow in creating the Gaussian-based threshold
         mask.  Default is no minimum
+    max_gauss_threshold : float
+        The maximum threshold to allow in creating the Gaussian-based threshold
+        mask.  Default is no maximum.  If this is set, any regions with 1/peak
+        signal-to-noise ratio greater than this value will be set to this value
     use_peak_for_velcut : bool
         Use the peak velocity to perform the +/- dV velocity cut?  Defaults to
         False, in which case the centroid is used instead.  The centroid is
@@ -450,6 +460,7 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
 
     if use_default_width:
         bad_widths = np.isnan(width_map)
+        log.info(f"There are {bad_widths.sum()} bad (nan) values in the width map")
     if np.any(width_map <= 0):
         if min_width:
             raise ValueError("Negative or zero width found in width map")
@@ -461,12 +472,15 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
     else:
         velocity_map = centroid_map
 
+    initial_spatial_mask = cube.mask.include().any(axis=0)
+
     # Now loop over EACH line, extracting moments etc. from the appropriate region:
     # we'll also apply a transition-dependent width (my_line_widths) here because
     # these fainter lines do not have peaks as far out as the bright line.
 
     for line_name,line_freq,line_width in zip(my_line_names,my_line_list,my_line_widths):
 
+        print()
         log.info("Line: {0}, {1}, {2}".format(line_name, line_freq, line_width))
 
         line_freq = u.Quantity(line_freq,u.GHz)
@@ -500,7 +514,10 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             #print('max(Width Map)',np.nanmax(width_map))
             #print('Width Map Scaling: ',width_map_scaling)
             if use_default_width:
+                nbad = np.isnan(width_map).sum()
                 width_map[bad_widths] = line_width
+                if debug:
+                    print(f"Reduced NAN pixels from {nbad} to {np.isnan(width_map).sum()} by using a default line width={line_width}")
             # NOTE: Following line sometimes produces image with NaNs at some positions.  Should try to fix...
             gauss_mask_cube = np.exp(-(np.array(velocity_map)[None,:,:] -
                                        np.array(subcube.spectral_axis)[:,None,None])**2 /
@@ -514,6 +531,7 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             #                                                overwrite=True)
 
             print("Peak S/N: {0}".format(np.nanmax(peak_sn)))
+            print("Minimum S/N: {0}".format(np.nanmin(peak_sn)))
 
             # threshold at the fraction of the Gaussian corresponding to our peak s/n.
             # i.e., if the S/N=6, then the threshold will be 6-sigma
@@ -521,8 +539,22 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             threshold = 1 / peak_sn
             if min_gauss_threshold is not None:
                 if debug:
-                    log.debug(f"There are {(threshold < min_gauss_threshold).sum()} thresholds < {min_gauss_threshold}")
+                    print(f"DEBUG: There are {(threshold < min_gauss_threshold).sum()} thresholds < {min_gauss_threshold} (min_gauss_threshold)")
                 threshold[threshold < min_gauss_threshold] = min_gauss_threshold
+
+            if max_gauss_threshold is not None:
+                if debug:
+                    print(f"DEBUG: There are {(threshold > max_gauss_threshold).sum()} thresholds > {max_gauss_threshold} (max_gauss_threshold)")
+                threshold[threshold > min_gauss_threshold] = max_gauss_threshold
+
+            if debug:
+                hdu = cube.hdu
+                hdu.data = gauss_mask_cube
+                hdu.writeto(f"gauss_mask_cube_{target}_{line_name}.fits", overwrite=True)
+                hdu.data = peak_sn.value
+                hdu.writeto(f"peak_sn_{target}_{line_name}.fits", overwrite=True)
+                hdu.data = threshold.value
+                hdu.writeto(f"threshold_{target}_{line_name}.fits", overwrite=True)
 
             print("Highest Threshold: {0}".format(np.nanmax(threshold)))
             print("Lowest Positive Threshold: {0}".format((threshold[threshold>0].min())))
@@ -542,17 +574,22 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
 
             # this will compare the gaussian cube to the threshold on a (spatial)
             # pixel-by-pixel basis
-            width_mask_cube = gauss_mask_cube > threshold
+            width_mask_cube = gauss_mask_cube >= threshold
+            if (gauss_mask_cube.max(axis=0) < 0).any():
+                print(f"There were {(gauss_mask_cube.max(axis=0) < 0).sum()} negative peaks")
+            if (gauss_mask_cube.max(axis=0) == 0).any():
+                print(f"There were {(gauss_mask_cube.max(axis=0) == 0).sum()} zero peaks")
             print("Number of values above threshold: {0}".format(width_mask_cube.sum()))
             print(f"Number of spatial pixels excluded: {(width_mask_cube.max(axis=0) == 0).sum()} out  of {np.prod(width_mask_cube.shape[1:])}")
+            print(f"Number of spatial pixels excluded in spatially included region: {((width_mask_cube.max(axis=0) == 0) & initial_spatial_mask).sum()} out  of {initial_spatial_mask.sum()}")
             print("Min, Max value in the mask cube: {0},{1}".format(np.nanmin(gauss_mask_cube), np.nanmax(gauss_mask_cube)))
             print("shapes: mask cube={0}  threshold: {1}".format(gauss_mask_cube.shape, threshold.shape))
             if debug:
-                print(f"{(gauss_mask_cube.sum(axis=0) == 0).sum()} spatial pixels still masked out")
-                print(f"{(width_mask_cube.sum(axis=0) == 0).sum()} spatial pixels still masked out (width)")
-                print(f"{(gauss_mask_cube.sum(axis=0) > 0).sum()} spatial pixels included")
-                print(f"{(width_mask_cube.sum(axis=0) > 0).sum()} spatial pixels included (width)")
-                print(f"subcube has {(subcube.mask.include().max(axis=0) == 0).sum()} spatially masked pixels")
+                print(f"debug: {(gauss_mask_cube.sum(axis=0) == 0).sum()} spatial pixels still masked out")
+                print(f"debug: {(width_mask_cube.sum(axis=0) == 0).sum()} spatial pixels still masked out (width)")
+                print(f"debug: {(gauss_mask_cube.sum(axis=0) > 0).sum()} spatial pixels included")
+                print(f"debug: {(width_mask_cube.sum(axis=0) > 0).sum()} spatial pixels included (width)")
+                print(f"debug: subcube has {(subcube.mask.include().max(axis=0) == 0).sum()} spatially masked pixels")
 
             msubcube = subcube.with_mask(width_mask_cube)
         else:
@@ -574,6 +611,8 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             spatially_masked_pixels2 = ~msubcube.mask.include().any(axis=0)
             assert np.all(spatially_masked_pixels == (spatially_masked_pixels2)), f"{(spatially_masked_pixels).sum()} != {(spatially_masked_pixels2).sum()}"
             assert (spatially_masked_pixels).sum() == (spatially_masked_pixels2).sum()
+            if debug:
+                print(f"spatially masked pixels {(spatially_masked_pixels).sum()} = {(spatially_masked_pixels2).sum()}")
 
         # this part makes a cube of velocities
         temp = subcube.spectral_axis
@@ -697,10 +736,14 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
                 os.mkdir('moment{0}'.format(moment))
             if moment == 2:
                 mom = msubcube.linewidth_fwhm()
+                if debug:
+                    print(f"DEBUG: linewidth has {(~np.isfinite(mom)).sum()} nans")
             else:
                 mom = msubcube.moment(order=moment, axis=0)
-                #log.debug(f"mom has {(~np.isfinite(mom)).sum()} nans")
-            #log.debug(f"msubcube includes: {msubcube.mask.include().max(axis=0).sum()} excludes: {(msubcube.mask.include().max(axis=0) == 0).sum()}")
+                if debug:
+                    print(f"DEBUG: mom has {(~np.isfinite(mom)).sum()} nans")
+            if debug:
+                print(f"DEBUG: msubcube includes: {msubcube.mask.include().max(axis=0).sum()} excludes: {(msubcube.mask.include().max(axis=0) == 0).sum()}")
             hdu = mom.hdu
             hdu.header.update(cube.beam.to_header_keywords())
             hdu.header['OBJECT'] = cube.header['OBJECT']
