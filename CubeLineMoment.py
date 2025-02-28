@@ -554,7 +554,7 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
             if max_gauss_threshold is not None:
                 if debug:
                     print(f"DEBUG: There are {(threshold > max_gauss_threshold).sum()} thresholds > {max_gauss_threshold} (max_gauss_threshold)")
-                threshold[threshold > min_gauss_threshold] = max_gauss_threshold
+                threshold[threshold > max_gauss_threshold] = max_gauss_threshold
 
             if debug:
                 hdu = cube.hdu
@@ -588,7 +588,7 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
                 print(f"There were {(gauss_mask_cube.max(axis=0) < 0).sum()} negative peaks")
             if (gauss_mask_cube.max(axis=0) == 0).any():
                 print(f"There were {(gauss_mask_cube.max(axis=0) == 0).sum()} zero peaks")
-            print("Number of values above threshold: {0}".format(width_mask_cube.sum()))
+            print("Number of values above threshold: {0} = {0:0.3g}".format(width_mask_cube.sum()))
             print(f"Number of spatial pixels excluded: {(width_mask_cube.max(axis=0) == 0).sum()} out  of {np.prod(width_mask_cube.shape[1:])}")
             print(f"Number of spatial pixels excluded in spatially included region: {((width_mask_cube.max(axis=0) == 0) & initial_spatial_mask).sum()} out  of {initial_spatial_mask.sum()}")
             print("Min, Max value in the mask cube: {0},{1}".format(np.nanmin(gauss_mask_cube), np.nanmax(gauss_mask_cube)))
@@ -599,6 +599,10 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
                 print(f"debug: {(gauss_mask_cube.sum(axis=0) > 0).sum()} spatial pixels included")
                 print(f"debug: {(width_mask_cube.sum(axis=0) > 0).sum()} spatial pixels included (width)")
                 print(f"debug: subcube has {(subcube.mask.include().max(axis=0) == 0).sum()} spatially masked pixels")
+
+            pl.figure(1).clf()
+            pl.hist(gauss_mask_cube.ravel(), bins=100);
+            raise
 
             msubcube = subcube.with_mask(width_mask_cube)
         else:
