@@ -57,7 +57,9 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
                          noisemapbright_baseline, noisemap_baseline,
                          spatial_mask_limit, sample_pixel,
                          min_width=None,
-                         mask_negatives=True, **kwargs):
+                         mask_negatives=True,
+                         allow_huge_operations=True,
+                         **kwargs):
     """
     For a given cube file, read it and compute the moments (0,1,2) for a
     selection of spectral lines.  This code is highly configurable.
@@ -122,6 +124,8 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
     min_width : velocity
         The minimum velocity to allow in the velocity map.  It's a good idea to
         set this at least to the channel width.
+    allow_huge : bool
+        Allow huge operations?
 
 
     Returns
@@ -141,6 +145,8 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
         except AttributeError:
             cube = cube.subcube_from_regions(regions.Regions.read(cuberegion))
 
+    cube.allow_huge_operations = allow_huge_operations
+
     # --------------------------
     # Define a spatial mask that guides later calculations by defining where
     # dense gas is and is not.
@@ -153,6 +159,7 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
         except AttributeError:
             cutoutcube = cutoutcube.subcube_from_regions(regions.Regions.read(cutoutcuberegion))
     noisecubebright = cutoutcube
+    noisecubebright.allow_huge_operations = allow_huge_operations
 
     initial_spatial_mask = cutoutcube.mask.include().any(axis=0)
 
@@ -263,7 +270,9 @@ def cubelinemoment_setup(cube, cuberegion, cutoutcube,
             raise ValueError("noisemapbright_baseline ({0},{1}) out of range ({2},{3})".format(low,high,0,noisecubebright.header['NAXIS3']))
 
     # need to use an unmasked cube
-    noisemapbright = noisecubebright.with_mask(mask[:,None,None]).std(axis=0)
+    noisecubebright_masked = noisecubebright.with_mask(mask[:,None,None])
+    noisecubebright_masked.allow_huge_operations = allow_huge_operations
+    noisemapbright = noisecubebright_masked.std(axis=0)
     print("noisemapbright peak = {0}".format(np.nanmax(noisemapbright)))
 
     # Create noisemapbright_baseline mask for plotting
