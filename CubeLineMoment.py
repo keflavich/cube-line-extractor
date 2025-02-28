@@ -600,10 +600,6 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
                 print(f"debug: {(width_mask_cube.sum(axis=0) > 0).sum()} spatial pixels included (width)")
                 print(f"debug: subcube has {(subcube.mask.include().max(axis=0) == 0).sum()} spatially masked pixels")
 
-            pl.figure(1).clf()
-            pl.hist(gauss_mask_cube.ravel(), bins=100);
-            raise
-
             msubcube = subcube.with_mask(width_mask_cube)
         else:
             msubcube = subcube
