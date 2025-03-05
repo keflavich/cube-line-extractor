@@ -28,6 +28,7 @@ from spectral_cube import SpectralCube
 from astropy import units as u
 from astropy.io import fits
 from astropy import constants
+from scipy import ndimage
 import regions
 import pylab as pl
 import yaml
@@ -405,6 +406,8 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
                              min_gauss_threshold=None,
                              max_gauss_threshold=None,
                              use_peak_for_velcut=False,
+                             dilation_iterations=0,
+                             erosion_iterations=0,
                              debug=False,
                              **kwargs):
     """
@@ -455,6 +458,11 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
         False, in which case the centroid is used instead.  The centroid is
         likely more robust, but there are some cases where you might prefer the
         peak.
+    dilation_iterations : int
+    erosion_iterations : int
+        Number of itertaions of dilation and erosion to apply to the mask.
+        This is applied to the width mask and the signal mask with the same
+        number of iterations for both.  Dilation is applied before erosion.
 
     Returns
     -------
@@ -600,16 +608,28 @@ def cubelinemoment_multiline(cube, peak_velocity, centroid_map, max_map,
                 print(f"debug: {(width_mask_cube.sum(axis=0) > 0).sum()} spatial pixels included (width)")
                 print(f"debug: subcube has {(subcube.mask.include().max(axis=0) == 0).sum()} spatially masked pixels")
 
+            if dilation_iterations > 0:
+                width_mask_cube = ndimage.binary_dilation(width_mask_cube,
+                                                          iterations=dilation_iterations)
+            if erosion_iterations > 0:
+                width_mask_cube = ndimage.binary_erosion(width_mask_cube,
+                                                         iterations=erosion_iterations)
+
             msubcube = subcube.with_mask(width_mask_cube)
         else:
             msubcube = subcube
-
 
         if debug:
             log.debug(f"msubcube spatial includes before signal mask: {msubcube.mask.include().max(axis=0).sum()} excludes: {msubcube.mask.exclude().max(axis=0).sum()} full excludes: {(msubcube.mask.exclude().max(axis=0)==0).sum()}")
         # Mask on a pixel-by-pixel basis with an N-sigma cut
         if signal_mask_limit is not None:
             signal_mask = subcube > signal_mask_limit*noisemap
+
+            if dilation_iterations > 0:
+                signal_mask = ndimage.binary_dilation(signal_mask, iterations=dilation_iterations)
+            if erosion_iterations > 0:
+                signal_mask = ndimage.binary_erosion(signal_mask, iterations=erosion_iterations)
+
             if debug:
                 log.debug(f"signal mask results in {signal_mask.sum()} included pixels")
             msubcube = msubcube.with_mask(signal_mask)
