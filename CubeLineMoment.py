@@ -950,6 +950,8 @@ def main():
     params['my_line_list'] = u.Quantity(parse_floatlist(params['my_line_list']), u.GHz)
     params['my_line_widths'] = u.Quantity(parse_floatlist(params['my_line_widths']), u.km/u.s)
     params['my_line_names'] = params['my_line_names'].split(", ")
+    params['dilation_iterations'] = int(params['dilation_iterations']) if 'dilation_iterations' in params else 0
+    params['erosion_iterations'] = int(params['erosion_iterations']) if 'erosion_iterations' in params else 0
     #if 'sample_pixel' in params:
     #    params['sample_pixel'] != None
     '''
