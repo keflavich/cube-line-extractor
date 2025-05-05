@@ -36,7 +36,7 @@ run CubeLineMoment.py yaml_scripts/CubeLineMomentInput.yaml
    set `vz` to a value near the median radial velocity of your target.
    Example: 258.8
 
- - `target` [string]: Target name.
+ - `target` [string]: Target name.  Used as first part of output moment file names.
    Example: NGC253
 
  - `brightest_line_name` [string]: Brightest line name.
@@ -74,23 +74,40 @@ run CubeLineMoment.py yaml_scripts/CubeLineMomentInput.yaml
    zero-intensities for transitions in `my_line_list`.
    Example: 50.0, 50.0, 60.0, 40.0, 40.0, 40.0, 40.0, 40.0, 40.0, 40.0, 40.0, 40.0, 40.0, 50.0, 40.0, 40.0
 
- - `my_line_names` [list:string]: List of transition names in `my_line_list`.
+ - `my_line_names` [list:string]: List of transition names in `my_line_list`.  Used as second part of output moment file names.
    Example: 13CNF122, CH3OH67, 13CNF132, CH3OCHO88, CH3OCHO4847, CH3OH2020, CH3OCHO4546, CH3OCHO??, H2COJ32K0, HC3N2423v0, CH3OH43, H2COJ32K221, H2COJ32K210, HC3N2423v6, OCS1817, HNCO109
 
- - `signal_mask_limit` [float]: Multiplier for noise-based signal
+ - `signal_mask_limit` [float or None]: Multiplier for noise-based signal
    masking.  Signal less than `signal_mask_limit` times RMS noise is
-   masked. 
+   masked. Unlike `spatial_mask_limit`, this threshold is applied on a per-voxel basis.
+   If this is set to ``None``, no signal masking will be applied.  Use `None` if `min/max_gauss_threshold` masking used.
    Example: 3
 
- - `spatial_mask_limit` [float]: Multiplier for noise-based spatial
+ - `spatial_mask_limit` [float or None]: Multiplier for noise-based spatial
    masking.  Signal less than `spatial_mask_limit` times RMS noise is
-   masked. 
+   masked. Use `None` if `min/max_gauss_threshold` masking used.
    Example: 3
 
  - `sample_pixel` [string]: File name for ds9 regions file that contains
    the sample pixel positions.  Regions file entries must be of type "point"
    (i.e. point(11.88341,-25.29118) # text={GMC1})
    Example: LeroyNGC253GMCPoint.reg
+
+ - `mask_negatives` [float or bool]: Mask out negatives below N-sigma negative.  Set to `False` if using `min/max_gauss_threshold`.
+
+ - `use_default_width` [bool]: If the width cannot be determined (moment2 is negative, for example), use the `my_line_widths` estimate in place of any pixels with NaN widths.  If using `min/max_gauss_threshold` masking set to `False`, otherwise, set to `True`.
+
+ - `apply_width_mask` [bool]: Should width masking be applied at all?  Turning this off can save some computational time.
+
+ - `min_width` [float:km/s]: The minimum velocity width to allow in the velocity map.  It's a good idea to set this at least to the channel width.
+
+ - `min_gauss_threshold` [float]: Mininum fractional level of `min_width` gaussian to include in noise calculation.  A good value to use is `0.10`.
+
+ - `max_gauss_threshold` [float]: Maximum fractional level of `min_width` gaussian to include in noise calculation.  A good value to use is `0.90`.
+
+ - `use_peak_for_velcut` [bool]: Use the peak velocity to perform the +/- dV velocity cut?  Defaults to `False`, in which case the centroid is used instead.  The centroid is likely more robust, but there are some cases where you might prefer the peak.
+
+ - `dilation_iterations` and `erosion_iterations` [int or None]: Number of itertaions of dilation and erosion to apply to the mask.  This is applied to the width mask and the signal mask with the same number of iterations for both.  Dilation is applied before erosion.  Good values are 4 and 2, respectively.
 
 
 ## Masking Used in CubeLineMoment:
@@ -132,6 +149,9 @@ run CubeLineMoment.py yaml_scripts/CubeLineMomentInput.yaml
 * Select the data combining the `velocity_range_mask`, the S/N limit, and the
   Gaussian-based `width_mask_cube`
 
+## Do Not Use Moment2
+
+The second moment calculated using this package is biased.  Do not use it.
 
 ## Warning Messages
 
@@ -170,6 +190,9 @@ Explanation: This warning often results from the calculation of the maximum valu
 Explanation: This warning results from the fact that the denominator in a divide uses a cube with `NaN` values.  Since it is common for a cube to use `NaN` as a blanking value, this warning is common.  Information only.  No action required.
 
 
+# Comparison Between Masked-Moment and CubeLineMoment Moment0 Calculation:
+
+A detailed comparison using some measurements of HCN 3-2 and 4-3 in NGC253 between a masked-moment algorithm and the algorithm used in CubeLineMoment is described [here](./Moment_Calculation_Comparison.pdf)
 
 # GaussfitGalaxies.py:
 
