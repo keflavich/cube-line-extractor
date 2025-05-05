@@ -48,7 +48,7 @@ To run in ipython use:
    set `vz` to a value near the median radial velocity of your target.
    Example: 258.8
 
- - `target` [string]: Target name.
+ - `target` [string]: Target name.  Used as first part of output moment file names.
    Example: NGC253
 
  - `brightest_line_name` [string]: Brightest line name.
@@ -86,23 +86,40 @@ To run in ipython use:
    zero-intensities for transitions in `my_line_list`.
    Example: 50.0, 50.0, 60.0, 40.0, 40.0, 40.0, 40.0, 40.0, 40.0, 40.0, 40.0, 40.0, 40.0, 50.0, 40.0, 40.0
 
- - `my_line_names` [list:string]: List of transition names in `my_line_list`.
+ - `my_line_names` [list:string]: List of transition names in `my_line_list`.  Used as second part of output moment file names.
    Example: 13CNF122, CH3OH67, 13CNF132, CH3OCHO88, CH3OCHO4847, CH3OH2020, CH3OCHO4546, CH3OCHO??, H2COJ32K0, HC3N2423v0, CH3OH43, H2COJ32K221, H2COJ32K210, HC3N2423v6, OCS1817, HNCO109
 
- - `signal_mask_limit` [float]: Multiplier for noise-based signal
+ - `signal_mask_limit` [float or None]: Multiplier for noise-based signal
    masking.  Signal less than `signal_mask_limit` times RMS noise is
-   masked. 
+   masked. Unlike `spatial_mask_limit`, this threshold is applied on a per-voxel basis.
+   If this is set to ``None``, no signal masking will be applied.  Use `None` if `min/max_gauss_threshold` masking used.
    Example: 3
 
- - `spatial_mask_limit` [float]: Multiplier for noise-based spatial
+ - `spatial_mask_limit` [float or None]: Multiplier for noise-based spatial
    masking.  Signal less than `spatial_mask_limit` times RMS noise is
-   masked. 
+   masked. Use `None` if `min/max_gauss_threshold` masking used.
    Example: 3
 
  - `sample_pixel` [string]: File name for ds9 regions file that contains
    the sample pixel positions.  Regions file entries must be of type "point"
    (i.e. point(11.88341,-25.29118) # text={GMC1})
    Example: LeroyNGC253GMCPoint.reg
+
+ - `mask_negatives` [float or bool]: Mask out negatives below N-sigma negative.  Set to `False` if using `min/max_gauss_threshold`.
+
+ - `use_default_width` [bool]: If the width cannot be determined (moment2 is negative, for example), use the `my_line_widths` estimate in place of any pixels with NaN widths.  If using `min/max_gauss_threshold` masking set to `False`, otherwise, set to `True`.
+
+ - `apply_width_mask` [bool]: Should width masking be applied at all?  Turning this off can save some computational time.
+
+ - `min_width` [float:km/s]: The minimum velocity width to allow in the velocity map.  It's a good idea to set this at least to the channel width.
+
+ - `min_gauss_threshold` [float]: Mininum fractional level of `min_width` gaussian to include in noise calculation.  A good value to use is `0.10`.
+
+ - `max_gauss_threshold` [float]: Maximum fractional level of `min_width` gaussian to include in noise calculation.  A good value to use is `0.90`.
+
+ - `use_peak_for_velcut` [bool]: Use the peak velocity to perform the +/- dV velocity cut?  Defaults to `False`, in which case the centroid is used instead.  The centroid is likely more robust, but there are some cases where you might prefer the peak.
+
+ - `dilation_iterations` and `erosion_iterations` [int or None]: Number of itertaions of dilation and erosion to apply to the mask.  This is applied to the width mask and the signal mask with the same number of iterations for both.  Dilation is applied before erosion.  Good values are 4 and 2, respectively.
 
 
 ## Masking Used in CubeLineMoment
@@ -184,28 +201,35 @@ Explanation: This warning results from the fact that the denominator in a divide
 
 ## Worked Example
 
-In the following we will show how a typical run of **CubeLineMoment** will look.  For this example I am processing an ALMA Band 3 measurement from the ALCHEMI large programme imaging of NGC253 [see Martin etal (2021)](https://ui.adsabs.harvard.edu/abs/2021A%26A...656A..46M/abstract).  Once I have edited my **yaml** file appropriately, it looks like the following:
+In the following we will show how a typical run of **CubeLineMoment** will look.  For this example I am processing an ALMA Band 6 measurement of the galaxy NGC253 from projects 2018.1.00765.S, 2021.1.00105.S, and 2019.1.00113.S.  Once I have edited my **yaml** file appropriately, it looks like the following:
 ```python
-cube: /Users/jmangum/Science/ALCHEMI/ScienceProjects/HCNHNC/createCubes/ngc253.88632MHz.HCN.1-0.regrid.12mC12mE.image.pbcor.fits
+cube: /Users/jmangum/Science/ALCHEMI/ALCHEMIHighResBand67/Imaging/ngc253_h_06_TM1/spw29/uid___A001_X133d_X1579.ngc253_sci.spw29.cube.selfcal.I.fits
 cuberegion: CubeLineMoment.reg
-cutoutcube: /Users/jmangum/Science/ALCHEMI/ImageCubes/B6c/ngc253.B6c.sc4_1.12m7m.220300.contsub.cv01_6.cube.fits
+cutoutcube: /Users/jmangum/Science/ALCHEMI/ALCHEMIHighResBand67/Imaging/ngc253_h_06_TM1/spw29/uid___A001_X133d_X1579.ngc253_sci.spw29.cube.selfcal.I.fits
 cutoutcuberegion: CubeLineMoment.reg
 vz: 236
 target: NGC253
-brightest_line_name: 13CO_21
-brightest_line_frequency: 220.398700
-width_line_frequency: 88.6316022
-velocity_half_range: 400
-noisemapbright_baseline: [[0,70],[170,232]]
-noisemap_baseline: [[0,24],[77,100]]
-my_line_list: 88.6316022
-my_line_widths: 150
-my_line_names: HCN_10
-signal_mask_limit: 3
-spatial_mask_limit: 3
-sample_pixel: LeroyNGC253GMCPoint.reg
+brightest_line_name: HCN_32
+brightest_line_frequency: 265.88618
+width_line_frequency: 265.88618
+velocity_half_range: 250
+noisemapbright_baseline: [[55,60],[150,165]]
+noisemap_baseline: [[55,60],[150,165]]
+my_line_list: 265.88618
+my_line_widths: 120
+my_line_names: HCN_32
+signal_mask_limit: None
+spatial_mask_limit: None
+mask_negatives: False
+sample_pixel: Region6.reg
+use_default_width: True
+min_width: 10
+min_gauss_threshold: 0.10
+max_gauss_threshold: 0.90
+dilation_iterations: 4
+erosion_iterations: 2
 ```
-...where you can see that I am using the 13CO 2-1 transition as a my bright "tracer" transition.  The **CubeLineMoment.reg** and **LeroyNGC253GMCPoint.reg** regions files look like the following...
+...where you can see that I am using the HCN 3-2 transition as a my bright "tracer" and "target" transitions.  The **CubeLineMoment.reg** and **Region6.reg** regions files look like the following...
 ```python
 # Region file format: DS9 version 4.1
 global color=green dashlist=8 3 width=1 font="helvetica 10 normal roman" select=1 highlite-1 dash=0 fixed=0 edit=1 move=1 delete=1 source=1 include=1
@@ -214,119 +238,62 @@ box(00:47:33.120,-25:17:17.59,60.0",50.0",0)
 ```
 
 ```python
-# Region file format: DS9 version 4.1
-global color=black dashlist=8 3 width=1 font="helvetica 10 normal roman" select=1 highlite=1 dash=0 fixed=0 edit=1 move=1 delete=1 include=1 source=1
+ Region file format: DS9 version 4.1
+global color=green dashlist=8 3 width=1 font="helvetica 10 normal roman" select=1 highlite=1 dash=0 fixed=0 edit=1 move=1 delete=1 include=1 source=1
 fk5
-point(11.88341,-25.29118) # text={GMC1}
-point(11.88449,-25.28895) # text={GMC2}
-point(11.88669,-25.28932) # text={GMC3}
-point(11.88739,-25.28888) # text={GMC4}
-point(11.88838,-25.28817) # text={GMC5}
-point(11.88888,-25.28771) # text={GMC6}
-point(11.89018,-25.28702) # text={GMC7}
-point(11.89176,-25.28650) # text={GMC8}
-point(11.89236,-25.28674) # text={GMC9}
-point(11.89265,-25.28551) # text={GMC10}
+point(0:47:33.3312,-25:17:15.756) # text={Region 6}
 ```
 
 I can run **CubeLineMoment** as follows in ipython:
 
 ```python
-In [2]: run CubeLineMoment.py yaml_scripts/HCN10.yaml
+In [2]: run CubeLineMoment.py yaml_scripts/HCN32.yaml
 WARNING: StokesWarning: Cube is a Stokes cube, returning spectral cube for I component [spectral_cube.io.core]
 WARNING: StokesWarning: Cube is a Stokes cube, returning spectral cube for I component [spectral_cube.io.core]
-WARNING: PossiblySlowWarning: This function (<function BaseSpectralCube.std at 0x19e9053a0>) requires loading the entire cube into memory and may therefore be slow. [spectral_cube.utils]
-WARNING: PossiblySlowWarning: This function (<function BaseSpectralCube.argmax at 0x19e905a60>) requires loading the entire cube into memory and may therefore be slow. [spectral_cube.utils]
-WARNING: PossiblySlowWarning: This function (<function BaseSpectralCube.max at 0x19e905700>) requires loading the entire cube into memory and may therefore be slow. [spectral_cube.utils]
-/Users/jmangum/anaconda3/envs/python39/lib/python3.9/site-packages/spectral_cube/spectral_cube.py:441: RuntimeWarning: All-NaN slice encountered
+WARNING: PossiblySlowWarning: This function (<function BaseSpectralCube.argmax at 0x10b97b060>) requires loading the entire cube into memory and may therefore be slow. [spectral_cube.utils]
+WARNING: PossiblySlowWarning: This function (<function BaseSpectralCube.max at 0x10b97aca0>) requires loading the entire cube into memory and may therefore be slow. [spectral_cube.utils]
+/Users/jmangum/anaconda3/envs/py313/lib/python3.13/site-packages/spectral_cube/spectral_cube.py:436: RuntimeWarning: All-NaN slice encountered
   out = function(self._get_filled_data(fill=fill,
-WARNING: PossiblySlowWarning: This function (<function BaseSpectralCube.std at 0x19e9053a0>) requires loading the entire cube into memory and may therefore be slow. [spectral_cube.utils]
-/Users/jmangum/anaconda3/envs/python39/lib/python3.9/site-packages/numpy/lib/nanfunctions.py:1878: RuntimeWarning: Degrees of freedom <= 0 for slice.
+/Users/jmangum/anaconda3/envs/py313/lib/python3.13/site-packages/numpy/lib/_nanfunctions_impl.py:2019: RuntimeWarning: Degrees of freedom <= 0 for slice.
   var = nanvar(a, axis=axis, dtype=dtype, out=out, ddof=ddof,
-noisemapbright peak = 0.07810217142105103 Jy / beam
-WARNING: PossiblySlowWarning: This function (<function BaseSpectralCube.std at 0x19e9053a0>) requires loading the entire cube into memory and may therefore be slow. [spectral_cube.utils]
-INFO: Line: HCN_10, 88.6316022 GHz, 150.0 km / s [__main__]
-/Users/jmangum/Python/mangum_galaxies-master/CubeLineMoment.py:445: RuntimeWarning: divide by zero encountered in divide
-  gauss_mask_cube = np.exp(-(np.array(centroid_map)[None,:,:] -
-Peak S/N: 6634.828125
-Highest Threshold: 0.11311683803796768
-Sample Pixel =  (299, 95)
-SP Threshold: 0.018084345385432243
-SP S, N, S/N: 0.013217752799391747 Jy / beam, 0.00023903441615402699 Jy / beam, 55.296443939208984
-Sample Pixel =  (275, 149)
-SP Threshold: 0.03061608038842678
-SP S, N, S/N: 0.005795983597636223 Jy / beam, 0.00017745028890203685 Jy / beam, 32.662574768066406
-Sample Pixel =  (228, 140)
-SP Threshold: 0.002327774418517947
-SP S, N, S/N: 0.08278271555900574 Jy / beam, 0.00019269948825240135 Jy / beam, 429.5948791503906
-Sample Pixel =  (212, 150)
-SP Threshold: 0.002027489012107253
-SP S, N, S/N: 0.10327742248773575 Jy / beam, 0.00020939383830409497 Jy / beam, 493.2209167480469
-Sample Pixel =  (191, 167)
-SP Threshold: 0.0004447655810508877
-SP S, N, S/N: 0.46902844309806824 Jy / beam, 0.0002086077001877129 Jy / beam, 2248.37548828125
-Sample Pixel =  (180, 178)
-SP Threshold: 0.00015731400344520807
-SP S, N, S/N: 1.14044189453125 Jy / beam, 0.0001794074778445065 Jy / beam, 6356.71337890625
-Sample Pixel =  (152, 195)
-SP Threshold: 0.0005626941565424204
-SP S, N, S/N: 0.34190449118614197 Jy / beam, 0.0001923876698128879 Jy / beam, 1777.164306640625
-Sample Pixel =  (118, 207)
-SP Threshold: 0.0032989103347063065
-SP S, N, S/N: 0.06636690348386765 Jy / beam, 0.00021893846860621125 Jy / beam, 303.1304016113281
-Sample Pixel =  (105, 202)
-SP Threshold: 0.014521691016852856
-SP S, N, S/N: 0.016176709905266762 Jy / beam, 0.00023491318279411644 Jy / beam, 68.86250305175781
-Sample Pixel =  (98, 231)
-SP Threshold: 0.00669202720746398
-SP S, N, S/N: 0.033527083694934845 Jy / beam, 0.00022436416475102305 Jy / beam, 149.43154907226562
-Number of values above threshold: 966577
-Max value in the mask cube: 0.9999999998971579
-shapes: mask cube=(84, 334, 400)  threshold: (334, 400)
-INFO: Auto-setting vmin to -1.406e+00 [aplpy.core]
-INFO: Auto-setting vmax to  1.572e+01 [aplpy.core]
-Moment 0 for sample pixel GMC1 is 0.038473427295684814 Jy km / (beam s)
-Moment 0 for sample pixel GMC2 is 0.05575093626976013 Jy km / (beam s)
-Moment 0 for sample pixel GMC3 is 0.7805874943733215 Jy km / (beam s)
-Moment 0 for sample pixel GMC4 is 2.0649075508117676 Jy km / (beam s)
-Moment 0 for sample pixel GMC5 is 7.018716335296631 Jy km / (beam s)
-Moment 0 for sample pixel GMC6 is 15.309162139892578 Jy km / (beam s)
-Moment 0 for sample pixel GMC7 is 5.89843225479126 Jy km / (beam s)
-Moment 0 for sample pixel GMC8 is 1.885023593902588 Jy km / (beam s)
-Moment 0 for sample pixel GMC9 is 0.6924808621406555 Jy km / (beam s)
-Moment 0 for sample pixel GMC10 is 0.6177182197570801 Jy km / (beam s)
-INFO: Auto-setting vmin to  2.541e+01 [aplpy.core]
-INFO: Auto-setting vmax to  4.588e+02 [aplpy.core]
-Moment 1 for sample pixel GMC1 is 65.88854994165774 km / s
-Moment 1 for sample pixel GMC2 is 99.36496316279107 km / s
-Moment 1 for sample pixel GMC3 is 145.45380971293133 km / s
-Moment 1 for sample pixel GMC4 is 155.32549505714815 km / s
-Moment 1 for sample pixel GMC5 is 179.89369183364863 km / s
-Moment 1 for sample pixel GMC6 is 188.2582229211131 km / s
-Moment 1 for sample pixel GMC7 is 274.61271265651504 km / s
-Moment 1 for sample pixel GMC8 is 342.81658611197463 km / s
-Moment 1 for sample pixel GMC9 is 253.64777774996247 km / s
-Moment 1 for sample pixel GMC10 is 365.3522476425767 km / s
-INFO: Auto-setting vmin to -1.606e+01 [aplpy.core]
-INFO: Auto-setting vmax to  1.783e+02 [aplpy.core]
-Moment 2 for sample pixel GMC1 is 18.252890407904523 km / s
-Moment 2 for sample pixel GMC2 is 30.425886040335453 km / s
-Moment 2 for sample pixel GMC3 is 89.13857699270842 km / s
-Moment 2 for sample pixel GMC4 is 90.66588556800252 km / s
-Moment 2 for sample pixel GMC5 is 118.54172350590706 km / s
-Moment 2 for sample pixel GMC6 is 112.36025197665448 km / s
-Moment 2 for sample pixel GMC7 is 141.10130367729795 km / s
-Moment 2 for sample pixel GMC8 is 140.1128437520198 km / s
-Moment 2 for sample pixel GMC9 is 131.76574974010254 km / s
-Moment 2 for sample pixel GMC10 is 78.98769056488635 km / s
-In [3]:
+noisemapbright peak = 0.0013851320836693048 Jy / beam
+/Users/jmangum/anaconda3/envs/py313/lib/python3.13/site-packages/numpy/lib/_nanfunctions_impl.py:2019: RuntimeWarning: Degrees of freedom <= 0 for slice.
+  var = nanvar(a, axis=axis, dtype=dtype, out=out, ddof=ddof,
+INFO: There are 341655 bad (nan) values in the width map [__main__]
+
+INFO: Line: HCN_32, 265.88618 GHz, 120.0 km / s [__main__]
+Peak S/N: 375.266845703125
+Minimum S/N: -1.6258751153945923
+Highest Threshold: 0.8999999761581421
+Lowest Positive Threshold: 0.10000000149011612
+Lowest Threshold: 0.10000000149011612
+Sample Pixel =  (375, 436, 'Region 6')
+SP Threshold: 0.10000000149011612
+SP S, N, S/N: 0.015526569448411465 Jy / beam, 0.0007053805748000741 Jy / beam, 22.011619567871094
+Number of values above threshold: 14501727 = 1.45e+07
+Number of spatial pixels excluded: 133391 out  of 613089
+Number of spatial pixels excluded in spatially included region: 2021 out  of 481719
+Min, Max value in the mask cube: 0.0,0.9999999999999996
+shapes: mask cube=(74, 783, 783)  threshold: (783, 783)
+WARNING: AstropyDeprecationWarning: CoordinateHelper.ticks should not be accessed directly and is deprecated [astropy.visualization.wcsaxes.coordinate_helpers]
+INFO: Auto-setting vmin to -9.594e-01 [aplpy.core]
+INFO: Auto-setting vmax to  3.771e+00 [aplpy.core]
+Moment 0 for sample pixel Region 6 is 1.3153144890763757 Jy km / (beam s)
+WARNING: AstropyDeprecationWarning: CoordinateHelper.ticks should not be accessed directly and is deprecated [astropy.visualization.wcsaxes.coordinate_helpers]
+INFO: Auto-setting vmin to -3.355e+03 [aplpy.core]
+INFO: Auto-setting vmax to  4.894e+03 [aplpy.core]
+Moment 1 for sample pixel Region 6 is 178.77670374261976 km / s
+WARNING: AstropyDeprecationWarning: CoordinateHelper.ticks should not be accessed directly and is deprecated [astropy.visualization.wcsaxes.coordinate_helpers]
+INFO: Auto-setting vmin to -2.090e+01 [aplpy.core]
+INFO: Auto-setting vmax to  3.980e+02 [aplpy.core]
+Moment 2 for sample pixel Region 6 is 103.65347329551717 km / s
 ```
 
 As you can see, **CubeLineMoment** is very chatty.  We will likely cut this back this verbosity a bit at some point in the future.  Note that all of the warnings are ignorable (see [Masking Used in CubeLineMoment](#masking-used-in-cubelinemoment)), due to minor things like using NaNs for blanking in the input image cube.  What you should see how are a number of new directories: 
 
 ```sh
 % ls *.png
-DEBUG_plot_NGC253_HCN_10_widthscale1.0_sncut3.0_widthcutscale1.0.png
+DEBUG_plot_NGC253_HCN_32_widthscale1.0_sncut999.0_widthcutscale1.0.png
 ```
 
 ...and there should be five new directories...
